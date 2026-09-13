@@ -42,20 +42,13 @@ endforeach()
 
 add_custom_target(fluid_shaders DEPENDS ${SHADER_BINARIES})
 
+file(GLOB_RECURSE FLUID_SIMULATOR_SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
+
 add_executable(fluid-simulator
-    src/main.cpp
-    src/app/application.cpp
-    src/core/camera.cpp
-    src/graphics/vulkan/frame_command_recorder.cpp
-    src/graphics/vulkan/device.cpp
-    src/graphics/vulkan/frame_renderer.cpp
-    src/graphics/vulkan/graphic_pipeline.cpp
-    src/graphics/vulkan/graphics_runtime.cpp
-    src/graphics/vulkan/instance.cpp
-    src/graphics/vulkan/renderer.cpp
-    src/graphics/vulkan/runtime_lifecycle.cpp
-    src/graphics/vulkan/swapchain.cpp
-    src/graphics/vulkan/vulkan_buffer.cpp
+    ${FLUID_SIMULATOR_SOURCES}
 )
 
 add_dependencies(fluid-simulator fluid_shaders)

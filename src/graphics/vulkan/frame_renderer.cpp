@@ -7,6 +7,7 @@
 #include "graphics/vulkan/device.hpp"
 #include "graphics/vulkan/renderer.hpp"
 #include "graphics/vulkan/swapchain.hpp"
+#include "graphics/vulkan/vulkan_buffer.hpp"
 
 namespace fluid::graphics {
 
@@ -84,17 +85,10 @@ VkResult FrameRenderer::presentFrame(uint32_t p_image_index) {
 FrameRenderStatus FrameRenderer::render(
     const core::Camera& camera,
     const glm::vec4& p_clear_color,
+    const VulkanBuffer& p_particle_vertex_buffer,
     uint32_t p_vertex_count
 ) {
-    if (vkWaitForFences(
-            _device.getDevice(),
-            1,
-            &_renderer.getCurrentInFlightFences(),
-            VK_TRUE,
-            UINT64_MAX
-        ) != VK_SUCCESS) {
-        throw std::runtime_error("FrameRenderer::render() -> failed to wait for the current frame");
-    }
+    waitForCurrentFrame();
 
     uint32_t imageIndex = 0;
     const VkResult acquireResult = acquireFrameImage(imageIndex);
@@ -117,6 +111,7 @@ FrameRenderStatus FrameRenderer::render(
         imageIndex,
         p_clear_color,
         camera.getProjectionMatrix() * camera.getViewMatrix(),
+        p_particle_vertex_buffer,
         p_vertex_count
     );
     submitFrame(imageIndex);
@@ -134,6 +129,18 @@ FrameRenderStatus FrameRenderer::render(
     }
 
     return FrameRenderStatus::Rendered;
+}
+
+void FrameRenderer::waitForCurrentFrame() {
+    if (vkWaitForFences(
+            _device.getDevice(),
+            1,
+            &_renderer.getCurrentInFlightFences(),
+            VK_TRUE,
+            UINT64_MAX
+        ) != VK_SUCCESS) {
+        throw std::runtime_error("FrameRenderer::waitForCurrentFrame() -> failed to wait for the current frame");
+    }
 }
 
 } // namespace fluid::graphics

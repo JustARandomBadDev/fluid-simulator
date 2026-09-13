@@ -1,7 +1,9 @@
 #include "app/application.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <span>
 #include <stdexcept>
 #include <utility>
 
@@ -24,6 +26,7 @@ Application::~Application() {
 void Application::run(bool smokeTest) {
     createWindow();
     initializeGraphics();
+    initializeSimulation();
     mainLoop(smokeTest);
     cleanup();
 }
@@ -85,17 +88,29 @@ void Application::initializeGraphics() {
 
     graphics::GraphicsRuntimeConfig config;
     config.vulkanHost = std::move(hostConfig);
+
     config.graphicsResources.particleVertexShader =
         std::filesystem::path(FLUID_SHADER_DIR) / "particle.vert.spv";
     config.graphicsResources.particleFragmentShader =
         std::filesystem::path(FLUID_SHADER_DIR) / "particle.frag.spv";
+
 #ifdef FLUID_ENABLE_VALIDATION
     config.enableValidationLayers = true;
 #else
     config.enableValidationLayers = false;
 #endif
 
+    config.particleCapacity = simulation::ParticleSystem::MAX_PARTICLES;
+
     _graphics.init(config);
+}
+
+void Application::initializeSimulation() {
+    _particle_system.initializeBox(
+        {0.0f, 0.0f, 0.0f},
+        {5, 5, 5},
+        0.35f
+    );
 }
 
 void Application::mainLoop(bool smokeTest) {
@@ -105,11 +120,15 @@ void Application::mainLoop(bool smokeTest) {
 
         int width = 0;
         int height = 0;
+
         glfwGetFramebufferSize(_window, &width, &height);
+
         if (width == 0 || height == 0) {
             glfwWaitEvents();
             continue;
         }
+
+        update();
 
         _camera.updateProjection(_graphics.getAspectRatio());
         _graphics.render(_camera);
@@ -123,6 +142,19 @@ void Application::mainLoop(bool smokeTest) {
             }
         }
     }
+}
+
+void Application::update() {
+    const std::span<const simulation::Particle> particles = _particle_system.particles();
+
+    for (std::size_t i = 0; i < particles.size(); ++i) {
+        _particle_vertices[i].position = particles[i].position;
+    }
+
+    _graphics.updateParticles({
+        _particle_vertices.data(),
+        particles.size()
+    });
 }
 
 void Application::cleanup() {

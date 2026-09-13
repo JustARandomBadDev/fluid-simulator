@@ -1,6 +1,7 @@
 #ifndef FLUID_GRAPHICS_VULKAN_GRAPHICS_CONFIG_HPP
 #define FLUID_GRAPHICS_VULKAN_GRAPHICS_CONFIG_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -26,6 +27,7 @@ struct GraphicsResourceConfig {
 struct GraphicsRuntimeConfig {
     VulkanHostConfig vulkanHost;
     glm::vec4 clearColor = {0.015f, 0.025f, 0.055f, 1.0f};
+    std::size_t particleCapacity = 100'000;
     uint32_t framesInFlight = 2;
     bool enableValidationLayers = true;
     GraphicsResourceConfig graphicsResources;

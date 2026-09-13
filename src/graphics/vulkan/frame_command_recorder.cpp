@@ -13,18 +13,17 @@ namespace fluid::graphics {
 CommandRecorder::CommandRecorder(
     Renderer& p_renderer,
     Swapchain& p_swapchain,
-    GraphicPipeline& p_graphic_pipeline,
-    VulkanBuffer& p_particle_vertex_buffer
+    GraphicPipeline& p_graphic_pipeline
 )
 : _renderer(p_renderer),
   _swapchain(p_swapchain),
-  _graphic_pipeline(p_graphic_pipeline),
-  _particle_vertex_buffer(p_particle_vertex_buffer) {}
+  _graphic_pipeline(p_graphic_pipeline) {}
 
 void CommandRecorder::record(
     uint32_t p_image_index,
     const glm::vec4& p_clear_color,
     const glm::mat4& p_view_projection,
+    const VulkanBuffer& p_particle_vertex_buffer,
     uint32_t p_vertex_count
 ) {
     const VkCommandBuffer command = _renderer.getCommandBuffer(p_image_index);
@@ -91,7 +90,7 @@ void CommandRecorder::record(
         &camera
     );
 
-    const VkBuffer vertexBuffers[] = {_particle_vertex_buffer.getBuffer()};
+    const VkBuffer vertexBuffers[] = {p_particle_vertex_buffer.getBuffer()};
     constexpr VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command, 0, 1, vertexBuffers, offsets);
     vkCmdDraw(command, p_vertex_count, 1, 0, 0);

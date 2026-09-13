@@ -16,6 +16,7 @@ class CommandRecorder;
 class Device;
 class Renderer;
 class Swapchain;
+class VulkanBuffer;
 
 enum class FrameRenderStatus {
     Rendered,
@@ -34,8 +35,11 @@ public:
     FrameRenderStatus render(
         const core::Camera& camera,
         const glm::vec4& p_clear_color,
+        const VulkanBuffer& p_particle_vertex_buffer,
         uint32_t p_vertex_count
     );
+
+    void waitForCurrentFrame();
 
 private:
     Device& _device;
