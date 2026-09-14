@@ -28,6 +28,9 @@ public:
     std::span<const Particle> particles() const noexcept;
 
     [[nodiscard]]
+    std::span<Particle> particles() noexcept;
+
+    [[nodiscard]]
     std::size_t count() const noexcept;
 
 private:

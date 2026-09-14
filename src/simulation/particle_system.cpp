@@ -72,6 +72,10 @@ std::span<const Particle> ParticleSystem::particles() const noexcept {
     return {_particles.data(), _count};
 }
 
+std::span<Particle> ParticleSystem::particles() noexcept {
+    return {_particles.data(), _count};
+}
+
 std::size_t ParticleSystem::count() const noexcept {
     return _count;
 }

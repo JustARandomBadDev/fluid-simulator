@@ -8,6 +8,8 @@ namespace fluid::simulation {
 struct Particle {
     glm::vec3 position{};
     glm::vec3 velocity{};
+    float density = 0.f;
+    float pressure = 0.f;
 };
 
 } // namespace fluid::simulation

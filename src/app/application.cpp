@@ -1,8 +1,10 @@
 #include "app/application.hpp"
+#include "backends/cpu/cpu_scalar_solver.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <span>
 #include <stdexcept>
 #include <utility>
@@ -18,6 +20,10 @@ constexpr int kInitialWindowHeight = 720;
 constexpr const char* kWindowTitle = "Fluid Simulator - Vulkan particles";
 
 } // namespace
+
+Application::Application()
+: _fluid_simulator(std::make_unique<simulation::CpuScalarSolver>())
+{}
 
 Application::~Application() {
     cleanup();
@@ -106,11 +112,7 @@ void Application::initializeGraphics() {
 }
 
 void Application::initializeSimulation() {
-    _particle_system.initializeBox(
-        {0.0f, 0.0f, 0.0f},
-        {5, 5, 5},
-        0.35f
-    );
+    _fluid_simulator.init();
 }
 
 void Application::mainLoop(bool smokeTest) {
@@ -128,7 +130,9 @@ void Application::mainLoop(bool smokeTest) {
             continue;
         }
 
-        update();
+        _timer.update();
+
+        update(_timer.getDeltaTime());
 
         _camera.updateProjection(_graphics.getAspectRatio());
         _graphics.render(_camera);
@@ -144,8 +148,8 @@ void Application::mainLoop(bool smokeTest) {
     }
 }
 
-void Application::update() {
-    const std::span<const simulation::Particle> particles = _particle_system.particles();
+void Application::update(float dt) {
+    const auto particles = _fluid_simulator.update(dt);
 
     for (std::size_t i = 0; i < particles.size(); ++i) {
         _particle_vertices[i].position = particles[i].position;
