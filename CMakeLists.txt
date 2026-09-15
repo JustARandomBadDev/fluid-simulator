@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(Vulkan REQUIRED)
 find_package(glfw3 3.3 REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(OpenMP REQUIRED)
 
 find_program(GLSLC_EXECUTABLE
     NAMES glslc
@@ -19,6 +20,7 @@ find_program(GLSLC_EXECUTABLE
 
 set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(SHADER_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/shaders")
+
 set(SHADER_SOURCES
     particle.vert
     particle.frag
@@ -63,6 +65,7 @@ target_link_libraries(fluid-simulator
         Vulkan::Vulkan
         glfw
         glm::glm
+        OpenMP::OpenMP_CXX
 )
 
 target_compile_definitions(fluid-simulator

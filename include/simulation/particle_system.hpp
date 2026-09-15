@@ -13,11 +13,7 @@ class ParticleSystem {
 public:
     static constexpr std::size_t MAX_PARTICLES = 100'000;
 
-    void initializeBox(
-        glm::vec3 p_center,
-        glm::ivec3 p_dimensions,
-        float p_spacing
-    );
+    void init();
 
     bool addParticle(const Particle& p_particle);
     bool removeParticle(std::size_t p_index);

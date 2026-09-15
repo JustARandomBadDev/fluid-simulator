@@ -5,11 +5,7 @@
 namespace fluid::simulation {
 
 void FluidSimulator::init() {
-    _particle_system.initializeBox(
-        {0.0f, 0.0f, 0.0f},
-        {5, 5, 5},
-        0.35f
-    );
+    _particle_system.init();
     _solver->init();
 }
 
