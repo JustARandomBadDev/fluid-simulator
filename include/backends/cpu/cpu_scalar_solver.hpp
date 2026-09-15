@@ -14,8 +14,8 @@ public:
     void init() override;
 
     void step(
-        std::span<Particle> particles,
-        float dt
+        ParticleData& p_particles,
+        float p_dt
     ) override;
 
 private:

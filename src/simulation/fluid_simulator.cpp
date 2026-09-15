@@ -9,9 +9,9 @@ void FluidSimulator::init() {
     _solver->init();
 }
 
-const std::span<const Particle> FluidSimulator::update(float p_dt) {
+const ParticleData& FluidSimulator::update(float p_dt) {
     if (! _solver) throw std::runtime_error("Empty solver !");
-
+    
     _solver->step(
         _particle_system.particles(),
         p_dt

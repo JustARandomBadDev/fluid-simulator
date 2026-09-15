@@ -14,7 +14,7 @@ public:
     : _solver(std::move(p_solver)) {};
 
     void init();
-    const std::span<const Particle> update(float dt);
+    const ParticleData& update(float dt);
 
 private:
     std::unique_ptr<Solver> _solver;

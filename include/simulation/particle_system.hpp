@@ -1,11 +1,9 @@
 #ifndef FLUID_SIMULATION_PARTICLE_SYSTEM_HPP
 #define FLUID_SIMULATION_PARTICLE_SYSTEM_HPP
 
-#include <array>
 #include <cstddef>
-#include <span>
 
-#include "simulation/particle.hpp"
+#include "simulation/particles_data.hpp"
 
 namespace fluid::simulation {
 
@@ -15,23 +13,22 @@ public:
 
     void init();
 
-    bool addParticle(const Particle& p_particle);
+    bool addParticle(const glm::vec3 p_position);
     bool removeParticle(std::size_t p_index);
 
     void clear() noexcept;
 
     [[nodiscard]]
-    std::span<const Particle> particles() const noexcept;
+    const ParticleData& particles() const noexcept;
 
     [[nodiscard]]
-    std::span<Particle> particles() noexcept;
+    ParticleData& particles() noexcept;
 
     [[nodiscard]]
     std::size_t count() const noexcept;
 
 private:
-    std::array<Particle, MAX_PARTICLES> _particles{};
-    std::size_t _count = 0;
+    ParticleData _particles;
 };
 
 } // namespace fluid::simulation
