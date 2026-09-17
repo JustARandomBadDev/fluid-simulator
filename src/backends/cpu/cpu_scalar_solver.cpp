@@ -1,17 +1,14 @@
 #include "backends/cpu/cpu_scalar_solver.hpp"
 #include "simulation/particles_data.hpp"
 
+#include <glm/glm.hpp>
 #include <algorithm>
-#include <cstddef>
 #include <vector>
-
-#include <glm/geometric.hpp>
-#include <glm/vec3.hpp>
 
 namespace fluid::simulation {
 
-void CpuScalarSolver::init() {
-
+void CpuScalarSolver::init(glm::vec3 p_box_dim) {
+    _box_dim = p_box_dim;
 }
 
 void CpuScalarSolver::step(
@@ -21,7 +18,6 @@ void CpuScalarSolver::step(
     p_dt = std::min(p_dt, 0.001f);
 
     const glm::vec3 gravity{0.0f, -9.81f, 0.0f};
-    const float h2 = SMOOTHING_RADIUS * SMOOTHING_RADIUS;
 
     // Density
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -35,12 +31,12 @@ void CpuScalarSolver::step(
             const glm::vec3 rij = pi - pj;
             const float r2 = glm::dot(rij, rij);
 
-            if (r2 < h2) {
-                const float x = h2 - r2;
+            if (r2 < _constants.h2) {
+                const float x = _constants.h2 - r2;
 
                 density +=
-                    PARTICLE_MASS *
-                    POLY_SIX *
+                    _params.particleMass *
+                    _constants.poly6 *
                     x * x * x;
             }
         }
@@ -51,7 +47,7 @@ void CpuScalarSolver::step(
     // Pressure
     for (std::size_t i = 0; i < p_particles.count; i++) {
         p_particles.pressures[i] = std::max(
-            STIFFNESS * (p_particles.densities[i] - REST_DENSITY),
+            _params.stiffness * (p_particles.densities[i] - _params.restDensity),
             0.0f
         );
     }
@@ -82,24 +78,29 @@ void CpuScalarSolver::step(
             }
 
             const glm::vec3 rij = po_i - po_j;
-            const float r = glm::length(rij);
+            const float r2 = glm::dot(rij, rij);
 
-            if (r <= 0.0f || r >= SMOOTHING_RADIUS) {
+            if (r2 <= 0.0f || r2 >= _constants.h2)
+                continue;
+
+            const float r = std::sqrt(r2);
+
+            if (r <= 0.0f || r >= _params.smoothingRadius) {
                 continue;
             }
 
             const glm::vec3 direction = rij / r;
-            const float distanceToEdge = SMOOTHING_RADIUS - r;
+            const float distanceToEdge = _params.smoothingRadius - r;
 
             // Pressure
             const glm::vec3 gradW =
-                -SPIKY *
+                -_constants.spiky *
                 distanceToEdge *
                 distanceToEdge *
                 direction;
 
             pressureAcceleration -=
-                PARTICLE_MASS *
+                _params.particleMass *
                 (
                     pr_i / (de_i * de_i) +
                     pr_j / (de_j * de_j)
@@ -108,11 +109,11 @@ void CpuScalarSolver::step(
 
             // Viscosity
             const float laplacian =
-                SPIKY * distanceToEdge;
+                _constants.spiky * distanceToEdge;
 
             viscosityAcceleration +=
-                VISCOSITY *
-                PARTICLE_MASS *
+                _params.viscosity *
+                _params.particleMass *
                 (ve_j - ve_i) /
                 de_j *
                 laplacian;
@@ -132,27 +133,37 @@ void CpuScalarSolver::step(
         velocity += accelerations[i] * p_dt;
         position += velocity * p_dt;
 
-        if (position.y < 0.0f) {
-            position.y = 0.0f;
-            velocity.y = 0.0f;
+        if (_box_dim.y > 0.f) {
+            if (position.y < 0.0f) {
+                position.y = 0.0f;
+                velocity.y = 0.0f;
+            } else if (
+                position.y > _box_dim.y) {
+                position.y = _box_dim.y;
+                velocity.y = 0.0f;
+            }
         }
 
-        if (position.x < -BOX_SIZE / 2.f) {
-            position.x = -BOX_SIZE / 2.f;
-            velocity.x = 0.0f;
-        } else if (
-            position.x > BOX_SIZE / 2.f) {
-            position.x = BOX_SIZE / 2.f;
-            velocity.x = 0.0f;
+        if (_box_dim.x > 0.f) {
+            if (position.x < -_box_dim.x / 2.f) {
+                position.x = -_box_dim.x / 2.f;
+                velocity.x = 0.0f;
+            } else if (
+                position.x > _box_dim.x / 2.f) {
+                position.x = _box_dim.x / 2.f;
+                velocity.x = 0.0f;
+            }
         }
 
-        if (position.z < -BOX_SIZE / 2.f) {
-            position.z = -BOX_SIZE / 2.f;
-            velocity.z = 0.0f;
-        } else if (
-            position.z > BOX_SIZE / 2.f) {
-            position.z = BOX_SIZE / 2.f;
-            velocity.z = 0.0f;
+        if (_box_dim.z > 0.f) {
+            if (position.z < -_box_dim.z / 2.f) {
+                position.z = -_box_dim.z / 2.f;
+                velocity.z = 0.0f;
+            } else if (
+                position.z > _box_dim.z / 2.f) {
+                position.z = _box_dim.z / 2.f;
+                velocity.z = 0.0f;
+            }
         }
     }
 }

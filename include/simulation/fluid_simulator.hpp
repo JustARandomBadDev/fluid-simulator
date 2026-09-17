@@ -13,7 +13,7 @@ public:
     FluidSimulator(std::unique_ptr<Solver> p_solver)
     : _solver(std::move(p_solver)) {};
 
-    void init();
+    void init(glm::vec3 p_box_dim);
     const ParticleData& update(float dt);
 
 private:
