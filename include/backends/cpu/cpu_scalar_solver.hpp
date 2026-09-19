@@ -2,6 +2,7 @@
 #define FLUID_SIMULATOR_CPU_SCALAR_SOLVER_HPP
 
 #include "simulation/solver.hpp"
+#include "simulation/uniform_grid.hpp"
 
 namespace fluid::simulation {
 
@@ -18,6 +19,8 @@ public:
 
 private:
     glm::vec3 _box_dim;
+
+    UniformGrid _grid;
 };
 
 }

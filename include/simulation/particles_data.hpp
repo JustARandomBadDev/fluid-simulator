@@ -12,7 +12,7 @@ struct ParticleData {
     std::vector<glm::vec3> velocities;
     std::vector<float> densities;
     std::vector<float> pressures;
-    std::size_t count;
+    std::size_t count{};
 };
 
 } // namespace fluid::simulation

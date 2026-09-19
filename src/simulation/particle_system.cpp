@@ -15,9 +15,9 @@ void ParticleSystem::init() {
 
     for (int i = 0; i < 2000; i++) {
         if (!addParticle({
-            float(std::rand() % 1000) / 2000.f - 0.25f,
+            float(std::rand() % 1000) / 2000.f + 0.25f,
             float(std::rand() % 1000) / 1000.f + 0.50f,
-            float(std::rand() % 1000) / 2000.f - 0.25f}
+            float(std::rand() % 1000) / 2000.f + 0.25f}
         )) {
             throw std::runtime_error("ParticleSystem::initializeBox() -> capacity exceeded");
         }
@@ -29,18 +29,17 @@ bool ParticleSystem::addParticle(const glm::vec3 p_position) {
 
     if (count >= MAX_PARTICLES) return false;
 
-    count++;
-
     _particles.positions[count] = p_position;
     _particles.velocities[count] = {0.f, 0.f, 0.f};
     _particles.densities[count] = 0.f;
     _particles.pressures[count] = 0.f;
 
+    count++;
     return true;
 }
 
 bool ParticleSystem::removeParticle(std::size_t p_index) {
-    std::size_t count = _particles.count;
+    std::size_t& count = _particles.count;
 
     if (p_index >= count) return false;
 
@@ -49,7 +48,7 @@ bool ParticleSystem::removeParticle(std::size_t p_index) {
     _particles.densities[p_index]  = _particles.densities[count - 1];
     _particles.pressures[p_index]  = _particles.pressures[count - 1];
 
-    --count;
+    count--;
     
     return true;
 }
