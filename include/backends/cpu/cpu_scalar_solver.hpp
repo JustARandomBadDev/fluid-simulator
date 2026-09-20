@@ -22,12 +22,30 @@ public:
     ) override;
 
 private:
+    void computeDensityAndPressure(
+        ParticleData& p_particles
+    );
+
+    void computeAccelerations(
+        ParticleData& p_particles
+    );
+
+    void integrate(
+        ParticleData& p_particles,
+        float p_dt
+    );
+
+    void applyBoxCollision(
+        glm::vec3& p_position,
+        glm::vec3& p_velocity
+    ) const;
+
+private:
     glm::vec3 _box_dim;
 
     UniformGrid _grid;
 
     std::vector<glm::vec3> _accelerations;
-
     std::vector<float> _inverse_densities;
     std::vector<float> _pressure_terms;
 };
