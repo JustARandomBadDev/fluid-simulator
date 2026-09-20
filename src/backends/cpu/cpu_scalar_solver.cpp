@@ -1,11 +1,10 @@
 #include "backends/cpu/cpu_scalar_solver.hpp"
+
 #include "simulation/particle_system.hpp"
 #include "simulation/particles_data.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
-#include <vector>
 
 #include <glm/glm.hpp>
 
@@ -19,241 +18,433 @@ void CpuScalarSolver::init(glm::vec3 p_box_dim) {
         _params.smoothingRadius,
         ParticleSystem::MAX_PARTICLES
     );
+
+    _accelerations.resize(
+        ParticleSystem::MAX_PARTICLES
+    );
+
+    _inverse_densities.resize(
+        ParticleSystem::MAX_PARTICLES
+    );
+
+    _pressure_terms.resize(
+        ParticleSystem::MAX_PARTICLES
+    );
 }
 
 void CpuScalarSolver::step(
     ParticleData& p_particles,
     float p_dt
 ) {
-    std::cout << p_dt << "\n";
+    if (p_particles.count == 0)
+        return;
 
     p_dt = std::min(p_dt, 0.001f);
 
-    const glm::vec3 gravity{0.0f, -9.81f, 0.0f};
+    const glm::vec3 gravity{
+        0.0f,
+        -9.81f,
+        0.0f
+    };
+
+    const float density_factor =
+        _params.particleMass *
+        _constants.poly6;
+
+    const float pressure_factor =
+        _params.particleMass *
+        _constants.spiky;
+
+    const float viscosity_factor =
+        _params.viscosity *
+        _params.particleMass *
+        _constants.spiky;
 
     _grid.rebuild(p_particles);
 
-    // Density
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < p_particles.count; i++) {
-        const auto& pi = p_particles.positions[i];
-        const glm::ivec3 cell_pos = _grid.positionToCell(pi);
+    #pragma omp parallel
+    {
+        // -----------------------------------------------------
+        // Density + pressure
+        // -----------------------------------------------------
 
-        float density = 0.0f;
+        #pragma omp for schedule(static)
+        for (
+            std::size_t i = 0;
+            i < p_particles.count;
+            i++
+        ) {
+            const auto& position_i =
+                p_particles.positions[i];
 
-        for (int z = -1; z <= 1; z++) {
-            for (int y = -1; y <= 1; y++) {
-                for (int x = -1; x <= 1; x++) {
-                    const glm::ivec3 neighbor_pos =
-                        cell_pos + glm::ivec3(x, y, z);
+            const float pix = position_i.x;
+            const float piy = position_i.y;
+            const float piz = position_i.z;
 
-                    if (!_grid.contains(neighbor_pos))
-                        continue;
+            const glm::ivec3& cell_pos =
+                _grid.getParticleCellPosition(i);
 
-                    const uint32_t cell_index =
-                        _grid.get(glm::uvec3(neighbor_pos));
+            float density = 0.0f;
 
-                    const uint32_t offset =
-                        _grid.getOffset(cell_index);
+            for (int z = -1; z <= 1; z++) {
+                for (int y = -1; y <= 1; y++) {
+                    for (int x = -1; x <= 1; x++) {
+                        const glm::ivec3 neighbor_pos =
+                            cell_pos +
+                            glm::ivec3(x, y, z);
 
-                    const uint32_t count =
-                        _grid.getCount(cell_index);
+                        if (!_grid.contains(neighbor_pos))
+                            continue;
 
-                    for (
-                        uint32_t k = offset;
-                        k < offset + count;
-                        k++
-                    ) {
-                        const uint32_t j =
-                            _grid.getParticleIndex(k);
+                        const uint32_t cell_index =
+                            _grid.get(
+                                glm::uvec3(neighbor_pos)
+                            );
 
-                        const auto& pj =
-                            p_particles.positions[j];
+                        const uint32_t offset =
+                            _grid.getOffset(cell_index);
 
-                        const glm::vec3 rij = pi - pj;
-                        const float r2 = glm::dot(rij, rij);
+                        const uint32_t count =
+                            _grid.getCount(cell_index);
 
-                        if (r2 < _constants.h2) {
+                        const uint32_t end =
+                            offset + count;
+
+                        for (
+                            uint32_t k = offset;
+                            k < end;
+                            k++
+                        ) {
+                            const uint32_t j =
+                                _grid.getParticleIndex(k);
+
+                            const auto& position_j =
+                                p_particles.positions[j];
+
+                            const float rx =
+                                pix - position_j.x;
+
+                            const float ry =
+                                piy - position_j.y;
+
+                            const float rz =
+                                piz - position_j.z;
+
+                            const float r2 =
+                                rx * rx +
+                                ry * ry +
+                                rz * rz;
+
+                            if (r2 >= _constants.h2)
+                                continue;
+
                             const float q =
                                 _constants.h2 - r2;
 
                             density +=
-                                _params.particleMass *
-                                _constants.poly6 *
+                                density_factor *
                                 q * q * q;
                         }
                     }
                 }
             }
+
+            p_particles.densities[i] =
+                density;
+
+            const float pressure =
+                std::max(
+                    _params.stiffness *
+                        (
+                            density -
+                            _params.restDensity
+                        ),
+                    0.0f
+                );
+
+            p_particles.pressures[i] =
+                pressure;
+
+            const float safe_density =
+                std::max(
+                    density,
+                    1e-6f
+                );
+
+            const float inverse_density =
+                1.0f / safe_density;
+
+            _inverse_densities[i] =
+                inverse_density;
+
+            _pressure_terms[i] =
+                pressure *
+                inverse_density *
+                inverse_density;
         }
 
-        p_particles.densities[i] = density;
-    }
+        // -----------------------------------------------------
+        // Pressure + viscosity acceleration
+        // -----------------------------------------------------
 
-    // Pressure
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < p_particles.count; i++) {
-        p_particles.pressures[i] = std::max(
-            _params.stiffness *
-                (
-                    p_particles.densities[i] -
-                    _params.restDensity
-                ),
-            0.0f
-        );
-    }
+        #pragma omp for schedule(static)
+        for (
+            std::size_t i = 0;
+            i < p_particles.count;
+            i++
+        ) {
+            const auto& position_i =
+                p_particles.positions[i];
 
-    // Accelerations
-    std::vector<glm::vec3> accelerations(
-        p_particles.count,
-        glm::vec3{0.0f}
-    );
+            const auto& velocity_i =
+                p_particles.velocities[i];
 
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < p_particles.count; i++) {
-        const auto& po_i = p_particles.positions[i];
-        const auto& ve_i = p_particles.velocities[i];
-        const auto& de_i = p_particles.densities[i];
-        const auto& pr_i = p_particles.pressures[i];
+            const float pix = position_i.x;
+            const float piy = position_i.y;
+            const float piz = position_i.z;
 
-        const glm::ivec3 cell_pos =
-            _grid.positionToCell(po_i);
+            const float vix = velocity_i.x;
+            const float viy = velocity_i.y;
+            const float viz = velocity_i.z;
 
-        glm::vec3 pressureAcceleration{0.0f};
-        glm::vec3 viscosityAcceleration{0.0f};
+            const glm::ivec3& cell_pos =
+                _grid.getParticleCellPosition(i);
 
-        for (int z = -1; z <= 1; z++) {
-            for (int y = -1; y <= 1; y++) {
-                for (int x = -1; x <= 1; x++) {
-                    const glm::ivec3 neighbor_pos =
-                        cell_pos + glm::ivec3(x, y, z);
+            const float pressure_i =
+                _pressure_terms[i];
 
-                    if (!_grid.contains(neighbor_pos))
-                        continue;
+            float pressure_x = 0.0f;
+            float pressure_y = 0.0f;
+            float pressure_z = 0.0f;
 
-                    const uint32_t cell_index =
-                        _grid.get(glm::uvec3(neighbor_pos));
+            float viscosity_x = 0.0f;
+            float viscosity_y = 0.0f;
+            float viscosity_z = 0.0f;
 
-                    const uint32_t offset =
-                        _grid.getOffset(cell_index);
+            for (int z = -1; z <= 1; z++) {
+                for (int y = -1; y <= 1; y++) {
+                    for (int x = -1; x <= 1; x++) {
+                        const glm::ivec3 neighbor_pos =
+                            cell_pos +
+                            glm::ivec3(x, y, z);
 
-                    const uint32_t count =
-                        _grid.getCount(cell_index);
-
-                    for (
-                        uint32_t k = offset;
-                        k < offset + count;
-                        k++
-                    ) {
-                        const uint32_t j =
-                            _grid.getParticleIndex(k);
-
-                        if (i == j)
+                        if (!_grid.contains(neighbor_pos))
                             continue;
 
-                        const auto& po_j =
-                            p_particles.positions[j];
+                        const uint32_t cell_index =
+                            _grid.get(
+                                glm::uvec3(neighbor_pos)
+                            );
 
-                        const auto& ve_j =
-                            p_particles.velocities[j];
+                        const uint32_t offset =
+                            _grid.getOffset(cell_index);
 
-                        const auto& de_j =
-                            p_particles.densities[j];
+                        const uint32_t count =
+                            _grid.getCount(cell_index);
 
-                        const auto& pr_j =
-                            p_particles.pressures[j];
+                        const uint32_t end =
+                            offset + count;
 
-                        const glm::vec3 rij = po_i - po_j;
-                        const float r2 = glm::dot(rij, rij);
-
-                        if (
-                            r2 <= 0.0f ||
-                            r2 >= _constants.h2
+                        for (
+                            uint32_t k = offset;
+                            k < end;
+                            k++
                         ) {
-                            continue;
+                            const uint32_t j =
+                                _grid.getParticleIndex(k);
+
+                            if (i == j)
+                                continue;
+
+                            const auto& position_j =
+                                p_particles.positions[j];
+
+                            const auto& velocity_j =
+                                p_particles.velocities[j];
+
+                            const float rx =
+                                pix - position_j.x;
+
+                            const float ry =
+                                piy - position_j.y;
+
+                            const float rz =
+                                piz - position_j.z;
+
+                            const float r2 =
+                                rx * rx +
+                                ry * ry +
+                                rz * rz;
+
+                            if (
+                                r2 <= 0.0f ||
+                                r2 >= _constants.h2
+                            ) {
+                                continue;
+                            }
+
+                            const float r =
+                                std::sqrt(r2);
+
+                            const float inverse_r =
+                                1.0f / r;
+
+                            const float distance_to_edge =
+                                _params.smoothingRadius -
+                                r;
+
+                            const float distance_to_edge2 =
+                                distance_to_edge *
+                                distance_to_edge;
+
+                            // Pressure
+                            const float pressure_scalar =
+                                pressure_factor *
+                                (
+                                    pressure_i +
+                                    _pressure_terms[j]
+                                ) *
+                                distance_to_edge2 *
+                                inverse_r;
+
+                            pressure_x +=
+                                rx * pressure_scalar;
+
+                            pressure_y +=
+                                ry * pressure_scalar;
+
+                            pressure_z +=
+                                rz * pressure_scalar;
+
+                            // Viscosity
+                            const float viscosity_scalar =
+                                viscosity_factor *
+                                _inverse_densities[j] *
+                                distance_to_edge;
+
+                            viscosity_x +=
+                                (
+                                    velocity_j.x -
+                                    vix
+                                ) *
+                                viscosity_scalar;
+
+                            viscosity_y +=
+                                (
+                                    velocity_j.y -
+                                    viy
+                                ) *
+                                viscosity_scalar;
+
+                            viscosity_z +=
+                                (
+                                    velocity_j.z -
+                                    viz
+                                ) *
+                                viscosity_scalar;
                         }
-
-                        const float r = std::sqrt(r2);
-
-                        const glm::vec3 direction =
-                            rij / r;
-
-                        const float distanceToEdge =
-                            _params.smoothingRadius - r;
-
-                        // Pressure
-                        const glm::vec3 gradW =
-                            -_constants.spiky *
-                            distanceToEdge *
-                            distanceToEdge *
-                            direction;
-
-                        pressureAcceleration -=
-                            _params.particleMass *
-                            (
-                                pr_i / (de_i * de_i) +
-                                pr_j / (de_j * de_j)
-                            ) *
-                            gradW;
-
-                        // Viscosity
-                        const float laplacian =
-                            _constants.spiky *
-                            distanceToEdge;
-
-                        viscosityAcceleration +=
-                            _params.viscosity *
-                            _params.particleMass *
-                            (ve_j - ve_i) /
-                            de_j *
-                            laplacian;
                     }
                 }
             }
+
+            _accelerations[i] = {
+                pressure_x +
+                    viscosity_x +
+                    gravity.x,
+
+                pressure_y +
+                    viscosity_y +
+                    gravity.y,
+
+                pressure_z +
+                    viscosity_z +
+                    gravity.z
+            };
         }
 
-        accelerations[i] =
-            pressureAcceleration +
-            viscosityAcceleration +
-            gravity;
-    }
+        // Implicit barrier:
+        // all accelerations use the old particle state.
 
-    // Integration and box collision
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < p_particles.count; i++) {
-        auto& position = p_particles.positions[i];
-        auto& velocity = p_particles.velocities[i];
+        // -----------------------------------------------------
+        // Integration + box collision
+        // -----------------------------------------------------
 
-        velocity += accelerations[i] * p_dt;
-        position += velocity * p_dt;
+        #pragma omp for schedule(static)
+        for (
+            std::size_t i = 0;
+            i < p_particles.count;
+            i++
+        ) {
+            auto& position =
+                p_particles.positions[i];
 
-        if (_box_dim.y > 0.0f) {
-            if (position.y < 0.0f) {
-                position.y = 0.0f;
-                velocity.y = 0.0f;
-            } else if (position.y > _box_dim.y) {
-                position.y = _box_dim.y;
-                velocity.y = 0.0f;
+            auto& velocity =
+                p_particles.velocities[i];
+
+            const auto& acceleration =
+                _accelerations[i];
+
+            velocity.x +=
+                acceleration.x * p_dt;
+
+            velocity.y +=
+                acceleration.y * p_dt;
+
+            velocity.z +=
+                acceleration.z * p_dt;
+
+            position.x +=
+                velocity.x * p_dt;
+
+            position.y +=
+                velocity.y * p_dt;
+
+            position.z +=
+                velocity.z * p_dt;
+
+            // Y
+            if (_box_dim.y > 0.0f) {
+                if (position.y < 0.0f) {
+                    position.y = 0.0f;
+                    velocity.y = 0.0f;
+                } else if (
+                    position.y > _box_dim.y
+                ) {
+                    position.y =
+                        _box_dim.y;
+
+                    velocity.y = 0.0f;
+                }
             }
-        }
 
-        if (_box_dim.x > 0.0f) {
-            if (position.x < 0.0f) {
-                position.x = 0.0f;
-                velocity.x = 0.0f;
-            } else if (position.x > _box_dim.x) {
-                position.x = _box_dim.x;
-                velocity.x = 0.0f;
+            // X
+            if (_box_dim.x > 0.0f) {
+                if (position.x < 0.0f) {
+                    position.x = 0.0f;
+                    velocity.x = 0.0f;
+                } else if (
+                    position.x > _box_dim.x
+                ) {
+                    position.x =
+                        _box_dim.x;
+
+                    velocity.x = 0.0f;
+                }
             }
-        }
 
-        if (_box_dim.z > 0.0f) {
-            if (position.z < 0.0f) {
-                position.z = 0.0f;
-                velocity.z = 0.0f;
-            } else if (position.z > _box_dim.z) {
-                position.z = _box_dim.z;
-                velocity.z = 0.0f;
+            // Z
+            if (_box_dim.z > 0.0f) {
+                if (position.z < 0.0f) {
+                    position.z = 0.0f;
+                    velocity.z = 0.0f;
+                } else if (
+                    position.z > _box_dim.z
+                ) {
+                    position.z =
+                        _box_dim.z;
+
+                    velocity.z = 0.0f;
+                }
             }
         }
     }
