@@ -18,13 +18,8 @@ public:
 
     void clear() noexcept;
 
-    [[nodiscard]]
     const ParticleData& particles() const noexcept;
-
-    [[nodiscard]]
     ParticleData& particles() noexcept;
-
-    [[nodiscard]]
     std::size_t count() const noexcept;
 
 private:

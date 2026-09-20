@@ -11,7 +11,6 @@ public:
 
     void update();
 
-    [[nodiscard]]
     float getDeltaTime() const noexcept;
 
 private:

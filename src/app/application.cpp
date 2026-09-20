@@ -112,7 +112,7 @@ void Application::initializeGraphics() {
 }
 
 void Application::initializeSimulation() {
-    _fluid_simulator.init({1.f, 2.f, 1.f});
+    _fluid_simulator.init({1.f, 20.f, 1.f});
 }
 
 void Application::mainLoop(bool smokeTest) {

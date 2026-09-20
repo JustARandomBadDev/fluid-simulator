@@ -1,4 +1,5 @@
 #include "backends/cpu/cpu_scalar_solver.hpp"
+#include "simulation/particle_system.hpp"
 #include "simulation/particles_data.hpp"
 
 #include <algorithm>
@@ -12,9 +13,11 @@ namespace fluid::simulation {
 
 void CpuScalarSolver::init(glm::vec3 p_box_dim) {
     _box_dim = p_box_dim;
+
     _grid.init(
         p_box_dim,
-        _params.smoothingRadius
+        _params.smoothingRadius,
+        ParticleSystem::MAX_PARTICLES
     );
 }
 
@@ -23,39 +26,56 @@ void CpuScalarSolver::step(
     float p_dt
 ) {
     std::cout << p_dt << "\n";
-    
+
     p_dt = std::min(p_dt, 0.001f);
 
     const glm::vec3 gravity{0.0f, -9.81f, 0.0f};
 
-    _grid.build(p_particles);
+    _grid.rebuild(p_particles);
 
     // Density
-    for (std::size_t i = 0; i < p_particles.count; ++i) {
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < p_particles.count; i++) {
         const auto& pi = p_particles.positions[i];
         const glm::ivec3 cell_pos = _grid.positionToCell(pi);
 
         float density = 0.0f;
 
-        for (int z = -1; z <= 1; ++z) {
-            for (int y = -1; y <= 1; ++y) {
-                for (int x = -1; x <= 1; ++x) {
+        for (int z = -1; z <= 1; z++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
                     const glm::ivec3 neighbor_pos =
                         cell_pos + glm::ivec3(x, y, z);
 
                     if (!_grid.contains(neighbor_pos))
                         continue;
 
-                    const auto& cell = _grid.get(glm::uvec3(neighbor_pos));
+                    const uint32_t cell_index =
+                        _grid.get(glm::uvec3(neighbor_pos));
 
-                    for (const auto j : cell.get()) {
-                        const auto& pj = p_particles.positions[j];
+                    const uint32_t offset =
+                        _grid.getOffset(cell_index);
+
+                    const uint32_t count =
+                        _grid.getCount(cell_index);
+
+                    for (
+                        uint32_t k = offset;
+                        k < offset + count;
+                        k++
+                    ) {
+                        const uint32_t j =
+                            _grid.getParticleIndex(k);
+
+                        const auto& pj =
+                            p_particles.positions[j];
 
                         const glm::vec3 rij = pi - pj;
                         const float r2 = glm::dot(rij, rij);
 
                         if (r2 < _constants.h2) {
-                            const float q = _constants.h2 - r2;
+                            const float q =
+                                _constants.h2 - r2;
 
                             density +=
                                 _params.particleMass *
@@ -71,10 +91,14 @@ void CpuScalarSolver::step(
     }
 
     // Pressure
-    for (std::size_t i = 0; i < p_particles.count; ++i) {
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < p_particles.count; i++) {
         p_particles.pressures[i] = std::max(
             _params.stiffness *
-                (p_particles.densities[i] - _params.restDensity),
+                (
+                    p_particles.densities[i] -
+                    _params.restDensity
+                ),
             0.0f
         );
     }
@@ -85,46 +109,75 @@ void CpuScalarSolver::step(
         glm::vec3{0.0f}
     );
 
-    for (std::size_t i = 0; i < p_particles.count; ++i) {
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < p_particles.count; i++) {
         const auto& po_i = p_particles.positions[i];
         const auto& ve_i = p_particles.velocities[i];
         const auto& de_i = p_particles.densities[i];
         const auto& pr_i = p_particles.pressures[i];
 
-        const glm::ivec3 cell_pos = _grid.positionToCell(po_i);
+        const glm::ivec3 cell_pos =
+            _grid.positionToCell(po_i);
 
         glm::vec3 pressureAcceleration{0.0f};
         glm::vec3 viscosityAcceleration{0.0f};
 
-        for (int z = -1; z <= 1; ++z) {
-            for (int y = -1; y <= 1; ++y) {
-                for (int x = -1; x <= 1; ++x) {
+        for (int z = -1; z <= 1; z++) {
+            for (int y = -1; y <= 1; y++) {
+                for (int x = -1; x <= 1; x++) {
                     const glm::ivec3 neighbor_pos =
                         cell_pos + glm::ivec3(x, y, z);
 
                     if (!_grid.contains(neighbor_pos))
                         continue;
 
-                    const auto& cell = _grid.get(glm::uvec3(neighbor_pos));
+                    const uint32_t cell_index =
+                        _grid.get(glm::uvec3(neighbor_pos));
 
-                    for (const auto j : cell.get()) {
+                    const uint32_t offset =
+                        _grid.getOffset(cell_index);
+
+                    const uint32_t count =
+                        _grid.getCount(cell_index);
+
+                    for (
+                        uint32_t k = offset;
+                        k < offset + count;
+                        k++
+                    ) {
+                        const uint32_t j =
+                            _grid.getParticleIndex(k);
+
                         if (i == j)
                             continue;
 
-                        const auto& po_j = p_particles.positions[j];
-                        const auto& ve_j = p_particles.velocities[j];
-                        const auto& de_j = p_particles.densities[j];
-                        const auto& pr_j = p_particles.pressures[j];
+                        const auto& po_j =
+                            p_particles.positions[j];
+
+                        const auto& ve_j =
+                            p_particles.velocities[j];
+
+                        const auto& de_j =
+                            p_particles.densities[j];
+
+                        const auto& pr_j =
+                            p_particles.pressures[j];
 
                         const glm::vec3 rij = po_i - po_j;
                         const float r2 = glm::dot(rij, rij);
 
-                        if (r2 <= 0.0f || r2 >= _constants.h2)
+                        if (
+                            r2 <= 0.0f ||
+                            r2 >= _constants.h2
+                        ) {
                             continue;
+                        }
 
                         const float r = std::sqrt(r2);
 
-                        const glm::vec3 direction = rij / r;
+                        const glm::vec3 direction =
+                            rij / r;
+
                         const float distanceToEdge =
                             _params.smoothingRadius - r;
 
@@ -145,7 +198,8 @@ void CpuScalarSolver::step(
 
                         // Viscosity
                         const float laplacian =
-                            _constants.spiky * distanceToEdge;
+                            _constants.spiky *
+                            distanceToEdge;
 
                         viscosityAcceleration +=
                             _params.viscosity *
@@ -165,7 +219,8 @@ void CpuScalarSolver::step(
     }
 
     // Integration and box collision
-    for (std::size_t i = 0; i < p_particles.count; ++i) {
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < p_particles.count; i++) {
         auto& position = p_particles.positions[i];
         auto& velocity = p_particles.velocities[i];
 

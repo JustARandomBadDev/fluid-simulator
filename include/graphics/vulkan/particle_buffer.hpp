@@ -29,13 +29,10 @@ public:
 
     void cleanup();
 
-    [[nodiscard]]
     VulkanBuffer& buffer(uint32_t p_frame_index);
 
-    [[nodiscard]]
     const VulkanBuffer& buffer(uint32_t p_frame_index) const;
 
-    [[nodiscard]]
     uint32_t count(uint32_t p_frame_index) const;
 
 private:
