@@ -4,6 +4,7 @@
 #include "simulation/particles_data.hpp"
 #include "simulation/sph_constants.hpp"
 #include "simulation/sph_parameters.hpp"
+#include <glm/ext/vector_float3.hpp>
 
 namespace fluid::simulation {
 

@@ -2,6 +2,7 @@
 #define FLUID_SIMULATION_PARTICLE_SYSTEM_HPP
 
 #include <cstddef>
+#include <glm/ext/vector_float3.hpp>
 
 #include "simulation/particles_data.hpp"
 

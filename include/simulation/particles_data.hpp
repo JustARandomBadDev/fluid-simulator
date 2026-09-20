@@ -2,16 +2,22 @@
 #define FLUID_SIMULATION_PARTICLE_DATA_HPP
 
 #include <cstddef>
-#include <glm/glm.hpp>
 #include <vector>
 
 namespace fluid::simulation {
 
 struct ParticleData {
-    std::vector<glm::vec3> positions;
-    std::vector<glm::vec3> velocities;
+    std::vector<float> position_x;
+    std::vector<float> position_y;
+    std::vector<float> position_z;
+
+    std::vector<float> velocity_x;
+    std::vector<float> velocity_y;
+    std::vector<float> velocity_z;
+
     std::vector<float> densities;
     std::vector<float> pressures;
+
     std::size_t count{};
 };
 

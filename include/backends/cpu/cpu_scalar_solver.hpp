@@ -36,8 +36,12 @@ private:
     );
 
     void applyBoxCollision(
-        glm::vec3& p_position,
-        glm::vec3& p_velocity
+        float& p_position_x,
+        float& p_position_y,
+        float& p_position_z,
+        float& p_velocity_x,
+        float& p_velocity_y,
+        float& p_velocity_z
     ) const;
 
 private:

@@ -149,10 +149,19 @@ void Application::mainLoop(bool smokeTest) {
 }
 
 void Application::update(float dt) {
-    const auto particles = _fluid_simulator.update(dt);
+    const auto& particles =
+        _fluid_simulator.update(dt);
 
-    for (std::size_t i = 0; i < particles.count; ++i) {
-        _particle_vertices[i].position = particles.positions[i];
+    for (
+        std::size_t i = 0;
+        i < particles.count;
+        i++
+    ) {
+        _particle_vertices[i].position = {
+            particles.position_x[i],
+            particles.position_y[i],
+            particles.position_z[i]
+        };
     }
 
     _graphics.updateParticles({
