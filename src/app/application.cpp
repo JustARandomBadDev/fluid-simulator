@@ -17,13 +17,12 @@ namespace {
 
 constexpr int kInitialWindowWidth = 1280;
 constexpr int kInitialWindowHeight = 720;
-constexpr const char* kWindowTitle = "Fluid Simulator - Vulkan particles";
+constexpr const char *kWindowTitle = "Fluid Simulator - Vulkan particles";
 
 } // namespace
 
 Application::Application()
-: _fluid_simulator(std::make_unique<simulation::CpuScalarSolver>())
-{}
+    : _fluid_simulator(std::make_unique<simulation::CpuScalarSolver>()) {}
 
 Application::~Application() {
     cleanup();
@@ -38,7 +37,7 @@ void Application::run(bool smokeTest) {
 }
 
 void Application::createWindow() {
-    glfwSetErrorCallback([](int, const char* description) {
+    glfwSetErrorCallback([](int, const char *description) {
         (void)description;
     });
 
@@ -68,28 +67,34 @@ void Application::createWindow() {
 
 void Application::initializeGraphics() {
     uint32_t extensionCount = 0;
-    const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&extensionCount);
+    const char **glfwExtensions =
+        glfwGetRequiredInstanceExtensions(&extensionCount);
     if (glfwExtensions == nullptr || extensionCount == 0) {
-        throw std::runtime_error("GLFW did not provide the required Vulkan instance extensions");
+        throw std::runtime_error(
+            "GLFW did not provide the required Vulkan instance extensions"
+        );
     }
 
     graphics::VulkanHostConfig hostConfig;
     hostConfig.requiredInstanceExtensions.reserve(extensionCount);
     for (uint32_t index = 0; index < extensionCount; ++index) {
-        hostConfig.requiredInstanceExtensions.emplace_back(glfwExtensions[index]);
+        hostConfig.requiredInstanceExtensions.emplace_back(
+            glfwExtensions[index]
+        );
     }
 
-    hostConfig.createSurface = [this](VkInstance instance, VkSurfaceKHR& surface) {
+    hostConfig.createSurface = [this](
+                                   VkInstance instance,
+                                   VkSurfaceKHR &surface
+                               ) {
         return glfwCreateWindowSurface(instance, _window, nullptr, &surface);
     };
     hostConfig.getFramebufferExtent = [this]() {
         int width = 0;
         int height = 0;
         glfwGetFramebufferSize(_window, &width, &height);
-        return VkExtent2D{
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
-        };
+        return VkExtent2D{static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)};
     };
 
     graphics::GraphicsRuntimeConfig config;
@@ -117,6 +122,7 @@ void Application::initializeSimulation() {
 
 void Application::mainLoop(bool smokeTest) {
     uint32_t renderedFrames = 0;
+
     while (glfwWindowShouldClose(_window) == GLFW_FALSE) {
         glfwPollEvents();
 
@@ -149,25 +155,15 @@ void Application::mainLoop(bool smokeTest) {
 }
 
 void Application::update(float dt) {
-    const auto& particles =
-        _fluid_simulator.update(dt);
+    const auto &particles = _fluid_simulator.update(dt);
 
-    for (
-        std::size_t i = 0;
-        i < particles.count;
-        i++
-    ) {
-        _particle_vertices[i].position = {
-            particles.position_x[i],
+    for (std::size_t i = 0; i < particles.count; i++) {
+        _particle_vertices[i].position = {particles.position_x[i],
             particles.position_y[i],
-            particles.position_z[i]
-        };
+            particles.position_z[i]};
     }
 
-    _graphics.updateParticles({
-        _particle_vertices.data(),
-        particles.count
-    });
+    _graphics.updateParticles({_particle_vertices.data(), particles.count});
 }
 
 void Application::cleanup() {

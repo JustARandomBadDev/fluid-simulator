@@ -20,11 +20,11 @@ void ParticleSystem::init() {
     _particles.pressures.resize(MAX_PARTICLES);
 
     for (int i = 0; i < 2000; i++) {
-        if (!addParticle({
-            float(std::rand() % 1000) / 2000.f + 0.25f,
-            float(std::rand() % 1000) / 1000.f + 0.50f,
-            float(std::rand() % 1000) / 2000.f + 0.25f
-        })) {
+        if (!addParticle(
+                {float(std::rand() % 1000) / 2000.f + 0.25f,
+                    float(std::rand() % 1000) / 1000.f + 0.50f,
+                    float(std::rand() % 1000) / 2000.f + 0.25f}
+            )) {
             throw std::runtime_error(
                 "ParticleSystem::initializeBox() -> capacity exceeded"
             );
@@ -32,13 +32,10 @@ void ParticleSystem::init() {
     }
 }
 
-bool ParticleSystem::addParticle(
-    const glm::vec3 p_position
-) {
-    std::size_t& count = _particles.count;
+bool ParticleSystem::addParticle(const glm::vec3 p_position) {
+    std::size_t &count = _particles.count;
 
-    if (count >= MAX_PARTICLES)
-        return false;
+    if (count >= MAX_PARTICLES) return false;
 
     _particles.position_x[count] = p_position.x;
     _particles.position_y[count] = p_position.y;
@@ -56,39 +53,23 @@ bool ParticleSystem::addParticle(
     return true;
 }
 
-bool ParticleSystem::removeParticle(
-    std::size_t p_index
-) {
-    std::size_t& count = _particles.count;
+bool ParticleSystem::removeParticle(std::size_t p_index) {
+    std::size_t &count = _particles.count;
 
-    if (p_index >= count)
-        return false;
+    if (p_index >= count) return false;
 
     const std::size_t last = count - 1;
 
-    _particles.position_x[p_index] =
-        _particles.position_x[last];
+    _particles.position_x[p_index] = _particles.position_x[last];
+    _particles.position_y[p_index] = _particles.position_y[last];
+    _particles.position_z[p_index] = _particles.position_z[last];
 
-    _particles.position_y[p_index] =
-        _particles.position_y[last];
+    _particles.velocity_x[p_index] = _particles.velocity_x[last];
+    _particles.velocity_y[p_index] = _particles.velocity_y[last];
+    _particles.velocity_z[p_index] = _particles.velocity_z[last];
 
-    _particles.position_z[p_index] =
-        _particles.position_z[last];
-
-    _particles.velocity_x[p_index] =
-        _particles.velocity_x[last];
-
-    _particles.velocity_y[p_index] =
-        _particles.velocity_y[last];
-
-    _particles.velocity_z[p_index] =
-        _particles.velocity_z[last];
-
-    _particles.densities[p_index] =
-        _particles.densities[last];
-
-    _particles.pressures[p_index] =
-        _particles.pressures[last];
+    _particles.densities[p_index] = _particles.densities[last];
+    _particles.pressures[p_index] = _particles.pressures[last];
 
     count--;
 
@@ -99,13 +80,11 @@ void ParticleSystem::clear() noexcept {
     _particles.count = 0;
 }
 
-const ParticleData&
-ParticleSystem::particles() const noexcept {
+const ParticleData &ParticleSystem::particles() const noexcept {
     return _particles;
 }
 
-ParticleData&
-ParticleSystem::particles() noexcept {
+ParticleData &ParticleSystem::particles() noexcept {
     return _particles;
 }
 

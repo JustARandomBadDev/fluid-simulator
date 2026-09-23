@@ -8,19 +8,23 @@
 
 namespace fluid::graphics {
 
-ParticleBuffer::ParticleBuffer(Device& p_device)
-: _device(p_device) {}
+ParticleBuffer::ParticleBuffer(Device &p_device) : _device(p_device) {}
 
 void ParticleBuffer::initialize(
     std::size_t p_capacity,
     uint32_t p_frames_in_flight
 ) {
     if (p_capacity == 0 ||
-        p_capacity > static_cast<std::size_t>(std::numeric_limits<uint32_t>::max())) {
-        throw std::runtime_error("ParticleBuffer::initialize() -> invalid capacity");
+        p_capacity >
+            static_cast<std::size_t>(std::numeric_limits<uint32_t>::max())) {
+        throw std::runtime_error(
+            "ParticleBuffer::initialize() -> invalid capacity"
+        );
     }
     if (p_frames_in_flight == 0) {
-        throw std::runtime_error("ParticleBuffer::initialize() -> frames in flight must be non-zero");
+        throw std::runtime_error(
+            "ParticleBuffer::initialize() -> frames in flight must be non-zero"
+        );
     }
 
     cleanup();
@@ -28,12 +32,12 @@ void ParticleBuffer::initialize(
     _mapped_buffers.resize(p_frames_in_flight);
     _counts.resize(p_frames_in_flight, 0);
 
-    const VkDeviceSize bufferSize = static_cast<VkDeviceSize>(
-        p_capacity * sizeof(ParticleVertex)
-    );
+    const VkDeviceSize bufferSize =
+        static_cast<VkDeviceSize>(p_capacity * sizeof(ParticleVertex));
 
     try {
-        for (uint32_t frameIndex = 0; frameIndex < p_frames_in_flight; ++frameIndex) {
+        for (uint32_t frameIndex = 0; frameIndex < p_frames_in_flight;
+            ++frameIndex) {
             _buffers[frameIndex].createBuffer(
                 bufferSize,
                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
@@ -43,7 +47,10 @@ void ParticleBuffer::initialize(
             );
             _mapped_buffers[frameIndex] = _buffers[frameIndex].map();
             if (_mapped_buffers[frameIndex] == nullptr) {
-                throw std::runtime_error("ParticleBuffer::initialize() -> failed to map particle buffer");
+                throw std::runtime_error(
+                    "ParticleBuffer::initialize() -> failed to map particle "
+                    "buffer"
+                );
             }
         }
     } catch (...) {
@@ -59,10 +66,14 @@ void ParticleBuffer::update(
     std::span<const ParticleVertex> p_particles
 ) {
     if (p_particles.size() > _capacity) {
-        throw std::runtime_error("ParticleBuffer::update() -> capacity exceeded");
+        throw std::runtime_error(
+            "ParticleBuffer::update() -> capacity exceeded"
+        );
     }
     if (p_frame_index >= _buffers.size()) {
-        throw std::runtime_error("ParticleBuffer::update() -> invalid frame index");
+        throw std::runtime_error(
+            "ParticleBuffer::update() -> invalid frame index"
+        );
     }
 
     if (!p_particles.empty()) {
@@ -83,11 +94,11 @@ void ParticleBuffer::cleanup() {
     _capacity = 0;
 }
 
-VulkanBuffer& ParticleBuffer::buffer(uint32_t p_frame_index) {
+VulkanBuffer &ParticleBuffer::buffer(uint32_t p_frame_index) {
     return _buffers.at(p_frame_index);
 }
 
-const VulkanBuffer& ParticleBuffer::buffer(uint32_t p_frame_index) const {
+const VulkanBuffer &ParticleBuffer::buffer(uint32_t p_frame_index) const {
     return _buffers.at(p_frame_index);
 }
 

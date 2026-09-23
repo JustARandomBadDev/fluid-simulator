@@ -6,14 +6,14 @@
 namespace fluid::core {
 
 class Timer {
-public:
+  public:
     Timer() = default;
 
     void update();
 
     float getDeltaTime() const noexcept;
 
-private:
+  private:
     using Clock = std::chrono::steady_clock;
 
     Clock::time_point _last = Clock::now();

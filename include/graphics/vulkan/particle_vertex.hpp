@@ -20,7 +20,8 @@ struct ParticleVertex {
         return description;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 1> getAttributeDescriptions() {
+    static std::array<VkVertexInputAttributeDescription, 1>
+    getAttributeDescriptions() {
         std::array<VkVertexInputAttributeDescription, 1> descriptions{};
         descriptions[0].binding = 0;
         descriptions[0].location = 0;

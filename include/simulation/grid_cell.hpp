@@ -7,18 +7,20 @@
 namespace fluid::simulation {
 
 class GridCell {
-public:
+  public:
     void init();
     void clear();
 
     void add(std::size_t p_index);
 
-    const std::vector<std::size_t>& get() const { return _particles_index; }
+    const std::vector<std::size_t> &get() const {
+        return _particles_index;
+    }
 
-private:
+  private:
     std::vector<std::size_t> _particles_index;
 };
 
-}
+} // namespace fluid::simulation
 
 #endif

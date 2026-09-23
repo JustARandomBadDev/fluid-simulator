@@ -23,21 +23,21 @@ class Camera;
 namespace fluid::graphics {
 
 class GraphicsRuntime {
-public:
+  public:
     GraphicsRuntime();
     ~GraphicsRuntime();
 
-    GraphicsRuntime(const GraphicsRuntime&) = delete;
-    GraphicsRuntime& operator=(const GraphicsRuntime&) = delete;
+    GraphicsRuntime(const GraphicsRuntime &) = delete;
+    GraphicsRuntime &operator=(const GraphicsRuntime &) = delete;
 
-    void init(const GraphicsRuntimeConfig& config);
+    void init(const GraphicsRuntimeConfig &config);
     void updateParticles(std::span<const ParticleVertex> p_particles);
-    void render(const core::Camera& camera);
+    void render(const core::Camera &camera);
     void cleanup();
 
     float getAspectRatio() const;
 
-private:
+  private:
     Instance instance;
     Device device;
     Renderer renderer;

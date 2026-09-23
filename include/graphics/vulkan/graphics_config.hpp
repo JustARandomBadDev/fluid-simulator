@@ -15,7 +15,7 @@ namespace fluid::graphics {
 
 struct VulkanHostConfig {
     std::vector<std::string> requiredInstanceExtensions;
-    std::function<VkResult(VkInstance, VkSurfaceKHR&)> createSurface;
+    std::function<VkResult(VkInstance, VkSurfaceKHR &)> createSurface;
     std::function<VkExtent2D()> getFramebufferExtent;
 };
 

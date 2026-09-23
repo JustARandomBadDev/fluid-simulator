@@ -11,6 +11,6 @@ struct SphParameters {
     float viscosity = 0.03f;
 };
 
-}
+} // namespace fluid::simulation
 
 #endif

@@ -9,22 +9,28 @@
 
 namespace fluid::graphics {
 
-const std::vector<const char*> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
+const std::vector<const char *> deviceExtensions = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
+void Device::pickPhysicalDevice(Instance &p_instance, Swapchain &p_swapchain) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, nullptr);
 
     if (deviceCount == 0) {
-        throw std::runtime_error("Device::pickPhysicalDevice() -> no Vulkan-capable physical device found");
+        throw std::runtime_error(
+            "Device::pickPhysicalDevice() -> no Vulkan-capable physical device "
+            "found"
+        );
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, devices.data());
+    vkEnumeratePhysicalDevices(
+        p_instance.getInstance(),
+        &deviceCount,
+        devices.data()
+    );
 
-    for (const auto& pdevice : devices) {
+    for (const auto &pdevice : devices) {
         if (isDeviceSuitable(pdevice, p_instance, p_swapchain)) {
             physicalDevice = pdevice;
             break;
@@ -32,19 +38,26 @@ void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     }
 
     if (physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("Device::pickPhysicalDevice() -> failed to find a suitable physical device");
+        throw std::runtime_error(
+            "Device::pickPhysicalDevice() -> failed to find a suitable "
+            "physical device"
+        );
     }
 }
 
-void Device::createLogicalDevice(Instance& p_instance) {
+void Device::createLogicalDevice(Instance &p_instance) {
     if (physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("Device::createLogicalDevice() -> physical device is not initialized");
+        throw std::runtime_error(
+            "Device::createLogicalDevice() -> physical device is not "
+            "initialized"
+        );
     }
 
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice, p_instance);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(),
+        indices.presentFamily.value()};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -61,21 +74,26 @@ void Device::createLogicalDevice(Instance& p_instance) {
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.queueCreateInfoCount =
+        static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+    createInfo.enabledExtensionCount =
+        static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-        throw std::runtime_error("Device::createLogicalDevice() -> failed to create logical device");
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) !=
+        VK_SUCCESS) {
+        throw std::runtime_error(
+            "Device::createLogicalDevice() -> failed to create logical device"
+        );
     }
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
-void Device::recreateDepthResources(Swapchain& p_swapchain) {
+void Device::recreateDepthResources(Swapchain &p_swapchain) {
     VkFormat depthFormat = findDepthFormat();
 
     createImage(
@@ -127,8 +145,8 @@ void Device::cleanup() {
 
 bool Device::isDeviceSuitable(
     VkPhysicalDevice pdevice,
-    Instance& p_instance,
-    Swapchain& p_swapchain
+    Instance &p_instance,
+    Swapchain &p_swapchain
 ) const {
     QueueFamilyIndices indices = findQueueFamilies(pdevice, p_instance);
 
@@ -136,33 +154,52 @@ bool Device::isDeviceSuitable(
 
     bool swapChainAdequate = false;
     if (extensionsSupported) {
-        SwapChainSupportDetails swapChainSupport = p_swapchain.querySwapChainSupport(pdevice, p_instance);
-        swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+        SwapChainSupportDetails swapChainSupport =
+            p_swapchain.querySwapChainSupport(pdevice, p_instance);
+        swapChainAdequate = !swapChainSupport.formats.empty() &&
+                            !swapChainSupport.presentModes.empty();
     }
 
     VkPhysicalDeviceFeatures supportedFeatures{};
     vkGetPhysicalDeviceFeatures(pdevice, &supportedFeatures);
 
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.largePoints;
+    return indices.isComplete() && extensionsSupported && swapChainAdequate &&
+           supportedFeatures.largePoints;
 }
 
-QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const {
+QueueFamilyIndices Device::findQueueFamilies(
+    VkPhysicalDevice pdevice,
+    Instance &p_instance
+) const {
     QueueFamilyIndices indices;
 
     uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        pdevice,
+        &queueFamilyCount,
+        nullptr
+    );
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(pdevice, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        pdevice,
+        &queueFamilyCount,
+        queueFamilies.data()
+    );
 
     int i = 0;
-    for (const auto& queueFamily : queueFamilies) {
+    for (const auto &queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
         }
 
         VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, static_cast<uint32_t>(i), p_instance.getSurface(), &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(
+            pdevice,
+            static_cast<uint32_t>(i),
+            p_instance.getSurface(),
+            &presentSupport
+        );
 
         if (presentSupport) {
             indices.presentFamily = i;
@@ -180,44 +217,65 @@ QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance&
 
 bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) const {
     uint32_t extensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(pdevice, nullptr, &extensionCount, nullptr);
+    vkEnumerateDeviceExtensionProperties(
+        pdevice,
+        nullptr,
+        &extensionCount,
+        nullptr
+    );
 
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(pdevice, nullptr, &extensionCount, availableExtensions.data());
+    vkEnumerateDeviceExtensionProperties(
+        pdevice,
+        nullptr,
+        &extensionCount,
+        availableExtensions.data()
+    );
 
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+    std::set<std::string> requiredExtensions(
+        deviceExtensions.begin(),
+        deviceExtensions.end()
+    );
 
-    for (const auto& extension : availableExtensions) {
+    for (const auto &extension : availableExtensions) {
         requiredExtensions.erase(extension.extensionName);
     }
 
     return requiredExtensions.empty();
 }
 
-uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const {
+uint32_t Device::findMemoryType(
+    uint32_t typeFilter,
+    VkMemoryPropertyFlags properties
+) const {
     VkPhysicalDeviceMemoryProperties memProperties{};
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1U << i)) &&
-            (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            (memProperties.memoryTypes[i].propertyFlags & properties) ==
+                properties) {
             return i;
         }
     }
 
-    throw std::runtime_error("Device::findMemoryType() -> failed to find suitable memory type");
+    throw std::runtime_error(
+        "Device::findMemoryType() -> failed to find suitable memory type"
+    );
 }
 
 VkFormat Device::findDepthFormat() const {
     return findSupportedFormat(
-        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+        {VK_FORMAT_D32_SFLOAT,
+            VK_FORMAT_D32_SFLOAT_S8_UINT,
+            VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL,
         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
     );
 }
 
 VkFormat Device::findSupportedFormat(
-    const std::vector<VkFormat>& candidates,
+    const std::vector<VkFormat> &candidates,
     VkImageTiling tiling,
     VkFormatFeatureFlags features
 ) const {
@@ -225,15 +283,20 @@ VkFormat Device::findSupportedFormat(
         VkFormatProperties props{};
         vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
 
-        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
+        if (tiling == VK_IMAGE_TILING_LINEAR &&
+            (props.linearTilingFeatures & features) == features) {
             return format;
         }
-        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+        if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+            (props.optimalTilingFeatures & features) == features) {
             return format;
         }
     }
 
-    throw std::runtime_error("Device::findSupportedFormat() -> failed to find a supported depth format");
+    throw std::runtime_error(
+        "Device::findSupportedFormat() -> failed to find a supported depth "
+        "format"
+    );
 }
 
 void Device::createImage(
@@ -243,8 +306,8 @@ void Device::createImage(
     VkImageTiling tiling,
     VkImageUsageFlags usage,
     VkMemoryPropertyFlags properties,
-    VkImage& image,
-    VkDeviceMemory& memory
+    VkImage &image,
+    VkDeviceMemory &memory
 ) const {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -262,7 +325,9 @@ void Device::createImage(
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-        throw std::runtime_error("Device::createImage() -> failed to create image");
+        throw std::runtime_error(
+            "Device::createImage() -> failed to create image"
+        );
     }
 
     VkMemoryRequirements memRequirements{};
@@ -271,12 +336,15 @@ void Device::createImage(
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex =
+        findMemoryType(memRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
         vkDestroyImage(device, image, nullptr);
         image = VK_NULL_HANDLE;
-        throw std::runtime_error("Device::createImage() -> failed to allocate image memory");
+        throw std::runtime_error(
+            "Device::createImage() -> failed to allocate image memory"
+        );
     }
 
     if (vkBindImageMemory(device, image, memory, 0) != VK_SUCCESS) {
@@ -284,7 +352,9 @@ void Device::createImage(
         vkDestroyImage(device, image, nullptr);
         memory = VK_NULL_HANDLE;
         image = VK_NULL_HANDLE;
-        throw std::runtime_error("Device::createImage() -> failed to bind image memory");
+        throw std::runtime_error(
+            "Device::createImage() -> failed to bind image memory"
+        );
     }
 }
 

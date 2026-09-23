@@ -5,9 +5,7 @@ namespace fluid::core {
 void Timer::update() {
     const auto current = Clock::now();
 
-    _delta_time = std::chrono::duration<float>(
-        current - _last
-    ).count();
+    _delta_time = std::chrono::duration<float>(current - _last).count();
 
     _last = current;
 }

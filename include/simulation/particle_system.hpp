@@ -9,7 +9,7 @@
 namespace fluid::simulation {
 
 class ParticleSystem {
-public:
+  public:
     static constexpr std::size_t MAX_PARTICLES = 100'000;
 
     void init();
@@ -19,11 +19,11 @@ public:
 
     void clear() noexcept;
 
-    const ParticleData& particles() const noexcept;
-    ParticleData& particles() noexcept;
+    const ParticleData &particles() const noexcept;
+    ParticleData &particles() noexcept;
     std::size_t count() const noexcept;
 
-private:
+  private:
     ParticleData _particles;
 };
 

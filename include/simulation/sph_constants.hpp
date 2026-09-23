@@ -14,8 +14,8 @@ struct SphConstants {
     float spiky;
 };
 
-SphConstants makeSphConstants(const SphParameters& p_params);
+SphConstants makeSphConstants(const SphParameters &p_params);
 
-}
+} // namespace fluid::simulation
 
 #endif
