@@ -10,27 +10,31 @@ namespace fluid::graphics {
 namespace {
 
 void validateRequiredResourcePath(
-    const std::filesystem::path& path,
-    const char* resource_name
+    const std::filesystem::path &path,
+    const char *resource_name
 ) {
     if (path.empty()) {
-        throw std::runtime_error(std::string("missing required resource path: ") + resource_name);
+        throw std::runtime_error(
+            std::string("missing required resource path: ") + resource_name
+        );
     }
 
     if (!std::filesystem::exists(path)) {
         throw std::runtime_error(
-            std::string("required resource does not exist: ") + resource_name + " -> " + path.string()
+            std::string("required resource does not exist: ") + resource_name +
+            " -> " + path.string()
         );
     }
 
     if (!std::filesystem::is_regular_file(path)) {
         throw std::runtime_error(
-            std::string("required resource is not a file: ") + resource_name + " -> " + path.string()
+            std::string("required resource is not a file: ") + resource_name +
+            " -> " + path.string()
         );
     }
 }
 
-void validateGraphicsResources(const GraphicsResourceConfig& resources) {
+void validateGraphicsResources(const GraphicsResourceConfig &resources) {
     validateRequiredResourcePath(
         resources.particleVertexShader,
         "graphicsResources.particleVertexShader"
@@ -41,37 +45,47 @@ void validateGraphicsResources(const GraphicsResourceConfig& resources) {
     );
 }
 
-void validateInitConfig(const GraphicsRuntimeConfig& config) {
+void validateInitConfig(const GraphicsRuntimeConfig &config) {
     if (!config.vulkanHost.createSurface) {
-        throw std::runtime_error("GraphicsRuntime::init() -> vulkanHost.createSurface callback must be set");
+        throw std::runtime_error(
+            "GraphicsRuntime::init() -> vulkanHost.createSurface callback must "
+            "be set"
+        );
     }
 
     if (!config.vulkanHost.getFramebufferExtent) {
-        throw std::runtime_error("GraphicsRuntime::init() -> vulkanHost.getFramebufferExtent callback must be set");
+        throw std::runtime_error(
+            "GraphicsRuntime::init() -> vulkanHost.getFramebufferExtent "
+            "callback must be set"
+        );
     }
 
     if (config.vulkanHost.requiredInstanceExtensions.empty()) {
-        throw std::runtime_error("GraphicsRuntime::init() -> vulkanHost.requiredInstanceExtensions must not be empty");
+        throw std::runtime_error(
+            "GraphicsRuntime::init() -> vulkanHost.requiredInstanceExtensions "
+            "must not be empty"
+        );
     }
 
     if (config.framesInFlight == 0) {
-        throw std::runtime_error("GraphicsRuntime::init() -> framesInFlight must be greater than 0");
+        throw std::runtime_error(
+            "GraphicsRuntime::init() -> framesInFlight must be greater than 0"
+        );
+    }
+    if (config.particleCapacity == 0) {
+        throw std::runtime_error(
+            "GraphicsRuntime::init() -> particleCapacity must be greater than 0"
+        );
     }
 }
 
 } // namespace
 
 GraphicsRuntime::GraphicsRuntime()
-: runtimeLifecycle(
-      instance,
-      device,
-      renderer,
-      swapchain,
-      graphicPipeline,
-      particleVertexBuffer
-  ),
-  frameCommandRecorder(renderer, swapchain, graphicPipeline, particleVertexBuffer),
-  frameRenderer(device, renderer, swapchain, frameCommandRecorder) {}
+    : _particle_buffer(device),
+      runtimeLifecycle(instance, device, renderer, swapchain, graphicPipeline),
+      frameCommandRecorder(renderer, swapchain, graphicPipeline),
+      frameRenderer(device, renderer, swapchain, frameCommandRecorder) {}
 
 GraphicsRuntime::~GraphicsRuntime() {
     cleanup();
@@ -85,7 +99,7 @@ float GraphicsRuntime::getAspectRatio() const {
     const VkExtent2D framebufferExtent = getFramebufferExtent();
     if (framebufferExtent.width > 0 && framebufferExtent.height > 0) {
         return static_cast<float>(framebufferExtent.width) /
-            static_cast<float>(framebufferExtent.height);
+               static_cast<float>(framebufferExtent.height);
     }
 
     if (swapchain.getImageCount() > 0) {
@@ -118,7 +132,7 @@ bool GraphicsRuntime::ensureSwapchainReady() {
     const bool hostExtentChanged =
         swapchain.getImageCount() > 0 &&
         (swapchainExtent.width != framebufferExtent.width ||
-         swapchainExtent.height != framebufferExtent.height);
+            swapchainExtent.height != framebufferExtent.height);
 
     if (_swapchain_needs_recreate || hostExtentChanged) {
         return recreateSwapchain();
@@ -127,7 +141,7 @@ bool GraphicsRuntime::ensureSwapchainReady() {
     return true;
 }
 
-void GraphicsRuntime::init(const GraphicsRuntimeConfig& config) {
+void GraphicsRuntime::init(const GraphicsRuntimeConfig &config) {
     validateInitConfig(config);
     validateGraphicsResources(config.graphicsResources);
 
@@ -136,20 +150,23 @@ void GraphicsRuntime::init(const GraphicsRuntimeConfig& config) {
 
     const VkExtent2D framebufferExtent = getFramebufferExtent();
     if (framebufferExtent.width == 0 || framebufferExtent.height == 0) {
-        throw std::runtime_error("GraphicsRuntime::init() -> host framebuffer extent must be non-zero during initialization");
+        throw std::runtime_error(
+            "GraphicsRuntime::init() -> host framebuffer extent must be "
+            "non-zero during initialization"
+        );
     }
-
-    const std::vector<ParticleVertex> particles = makeValidationParticles();
-    _particle_count = static_cast<uint32_t>(particles.size());
 
     try {
         runtimeLifecycle.initialize(
             config.vulkanHost,
             config.graphicsResources,
-            particles,
             config.framesInFlight,
             config.enableValidationLayers,
             framebufferExtent
+        );
+        _particle_buffer.initialize(
+            config.particleCapacity,
+            config.framesInFlight
         );
         _initialized = true;
     } catch (...) {
@@ -158,15 +175,37 @@ void GraphicsRuntime::init(const GraphicsRuntimeConfig& config) {
     }
 }
 
-void GraphicsRuntime::render(const core::Camera& camera) {
+void GraphicsRuntime::updateParticles(
+    std::span<const ParticleVertex> p_particles
+) {
     if (!_initialized) {
-        throw std::runtime_error("GraphicsRuntime::render() -> runtime is not initialized");
+        throw std::runtime_error(
+            "GraphicsRuntime::updateParticles() -> runtime is not initialized"
+        );
     }
 
     if (!ensureSwapchainReady()) return;
 
-    if (frameRenderer.render(camera, _clear_color, _particle_count) ==
-        FrameRenderStatus::NeedsRecreate) {
+    frameRenderer.waitForCurrentFrame();
+    _particle_buffer.update(renderer.getCurrentFrame(), p_particles);
+}
+
+void GraphicsRuntime::render(const core::Camera &camera) {
+    if (!_initialized) {
+        throw std::runtime_error(
+            "GraphicsRuntime::render() -> runtime is not initialized"
+        );
+    }
+
+    if (!ensureSwapchainReady()) return;
+
+    const uint32_t currentFrame = renderer.getCurrentFrame();
+    if (frameRenderer.render(
+            camera,
+            _clear_color,
+            _particle_buffer.buffer(currentFrame),
+            _particle_buffer.count(currentFrame)
+        ) == FrameRenderStatus::NeedsRecreate) {
         _swapchain_needs_recreate = true;
         ensureSwapchainReady();
     }
@@ -178,7 +217,7 @@ void GraphicsRuntime::cleanup() {
 
         runtimeLifecycle.cleanupSwapchainDependentResources();
         swapchain.cleanup(device);
-        particleVertexBuffer.cleanup();
+        _particle_buffer.cleanup();
         renderer.cleanup(device);
         device.cleanup();
     }
@@ -187,29 +226,6 @@ void GraphicsRuntime::cleanup() {
     _host_config = {};
     _swapchain_needs_recreate = false;
     _initialized = false;
-    _particle_count = 0;
-}
-
-std::vector<ParticleVertex> GraphicsRuntime::makeValidationParticles() {
-    std::vector<ParticleVertex> particles;
-    particles.reserve(125);
-
-    constexpr int particlesPerAxis = 5;
-    constexpr float spacing = 0.35f;
-    constexpr float center = static_cast<float>(particlesPerAxis - 1) * 0.5f;
-    for (int z = 0; z < particlesPerAxis; ++z) {
-        for (int y = 0; y < particlesPerAxis; ++y) {
-            for (int x = 0; x < particlesPerAxis; ++x) {
-                particles.push_back({{
-                    (static_cast<float>(x) - center) * spacing,
-                    (static_cast<float>(y) - center) * spacing,
-                    (static_cast<float>(z) - center) * spacing
-                }});
-            }
-        }
-    }
-
-    return particles;
 }
 
 } // namespace fluid::graphics

@@ -7,21 +7,20 @@
 #include "graphics/vulkan/device.hpp"
 #include "graphics/vulkan/renderer.hpp"
 #include "graphics/vulkan/swapchain.hpp"
+#include "graphics/vulkan/vulkan_buffer.hpp"
 
 namespace fluid::graphics {
 
 FrameRenderer::FrameRenderer(
-    Device& p_device,
-    Renderer& p_renderer,
-    Swapchain& p_swapchain,
-    CommandRecorder& p_command_recorder
+    Device &p_device,
+    Renderer &p_renderer,
+    Swapchain &p_swapchain,
+    CommandRecorder &p_command_recorder
 )
-: _device(p_device),
-  _renderer(p_renderer),
-  _swapchain(p_swapchain),
-  _command_recorder(p_command_recorder) {}
+    : _device(p_device), _renderer(p_renderer), _swapchain(p_swapchain),
+      _command_recorder(p_command_recorder) {}
 
-VkResult FrameRenderer::acquireFrameImage(uint32_t& p_image_index) {
+VkResult FrameRenderer::acquireFrameImage(uint32_t &p_image_index) {
     return vkAcquireNextImageKHR(
         _device.getDevice(),
         _swapchain.getSwapChain(),
@@ -33,19 +32,25 @@ VkResult FrameRenderer::acquireFrameImage(uint32_t& p_image_index) {
 }
 
 void FrameRenderer::submitFrame(uint32_t p_image_index) {
-    VkSemaphore waitSemaphores[] = {_renderer.getCurrentImageAvailableSemaphores()};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    VkSemaphore signalSemaphores[] = {_renderer.getRenderFinishedSemaphore(p_image_index)};
+    VkSemaphore waitSemaphores[] = {
+        _renderer.getCurrentImageAvailableSemaphores()};
+    VkPipelineStageFlags waitStages[] = {
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSemaphore signalSemaphores[] = {
+        _renderer.getRenderFinishedSemaphore(p_image_index)};
 
     if (vkResetFences(
             _device.getDevice(),
             1,
             &_renderer.getCurrentInFlightFences()
         ) != VK_SUCCESS) {
-        throw std::runtime_error("FrameRenderer::submitFrame() -> failed to reset frame fence");
+        throw std::runtime_error(
+            "FrameRenderer::submitFrame() -> failed to reset frame fence"
+        );
     }
 
-    const VkCommandBuffer& commandBuffer = _renderer.getCommandBuffer(p_image_index);
+    const VkCommandBuffer &commandBuffer =
+        _renderer.getCommandBuffer(p_image_index);
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.waitSemaphoreCount = 1;
@@ -62,12 +67,16 @@ void FrameRenderer::submitFrame(uint32_t p_image_index) {
             &submitInfo,
             _renderer.getCurrentInFlightFences()
         ) != VK_SUCCESS) {
-        throw std::runtime_error("FrameRenderer::submitFrame() -> failed to submit draw command buffer");
+        throw std::runtime_error(
+            "FrameRenderer::submitFrame() -> failed to submit draw command "
+            "buffer"
+        );
     }
 }
 
 VkResult FrameRenderer::presentFrame(uint32_t p_image_index) {
-    VkSemaphore signalSemaphores[] = {_renderer.getRenderFinishedSemaphore(p_image_index)};
+    VkSemaphore signalSemaphores[] = {
+        _renderer.getRenderFinishedSemaphore(p_image_index)};
     VkSwapchainKHR swapChains[] = {_swapchain.getSwapChain()};
 
     VkPresentInfoKHR presentInfo{};
@@ -82,19 +91,12 @@ VkResult FrameRenderer::presentFrame(uint32_t p_image_index) {
 }
 
 FrameRenderStatus FrameRenderer::render(
-    const core::Camera& camera,
-    const glm::vec4& p_clear_color,
+    const core::Camera &camera,
+    const glm::vec4 &p_clear_color,
+    const VulkanBuffer &p_particle_vertex_buffer,
     uint32_t p_vertex_count
 ) {
-    if (vkWaitForFences(
-            _device.getDevice(),
-            1,
-            &_renderer.getCurrentInFlightFences(),
-            VK_TRUE,
-            UINT64_MAX
-        ) != VK_SUCCESS) {
-        throw std::runtime_error("FrameRenderer::render() -> failed to wait for the current frame");
-    }
+    waitForCurrentFrame();
 
     uint32_t imageIndex = 0;
     const VkResult acquireResult = acquireFrameImage(imageIndex);
@@ -103,20 +105,33 @@ FrameRenderStatus FrameRenderer::render(
     }
 
     if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error("FrameRenderer::render() -> failed to acquire swapchain image");
+        throw std::runtime_error(
+            "FrameRenderer::render() -> failed to acquire swapchain image"
+        );
     }
 
-    const VkFence& imageFence = _renderer.getImageInFlightFence(imageIndex);
-    if (imageFence != VK_NULL_HANDLE &&
-        vkWaitForFences(_device.getDevice(), 1, &imageFence, VK_TRUE, UINT64_MAX) != VK_SUCCESS) {
-        throw std::runtime_error("FrameRenderer::render() -> failed to wait for a swapchain image");
+    const VkFence &imageFence = _renderer.getImageInFlightFence(imageIndex);
+    if (imageFence != VK_NULL_HANDLE && vkWaitForFences(
+                                            _device.getDevice(),
+                                            1,
+                                            &imageFence,
+                                            VK_TRUE,
+                                            UINT64_MAX
+                                        ) != VK_SUCCESS) {
+        throw std::runtime_error(
+            "FrameRenderer::render() -> failed to wait for a swapchain image"
+        );
     }
-    _renderer.setImageInFlightFence(imageIndex, _renderer.getCurrentInFlightFences());
+    _renderer.setImageInFlightFence(
+        imageIndex,
+        _renderer.getCurrentInFlightFences()
+    );
 
     _command_recorder.record(
         imageIndex,
         p_clear_color,
         camera.getProjectionMatrix() * camera.getViewMatrix(),
+        p_particle_vertex_buffer,
         p_vertex_count
     );
     submitFrame(imageIndex);
@@ -130,10 +145,27 @@ FrameRenderStatus FrameRenderer::render(
     }
 
     if (presentResult != VK_SUCCESS) {
-        throw std::runtime_error("FrameRenderer::render() -> failed to present swapchain image");
+        throw std::runtime_error(
+            "FrameRenderer::render() -> failed to present swapchain image"
+        );
     }
 
     return FrameRenderStatus::Rendered;
+}
+
+void FrameRenderer::waitForCurrentFrame() {
+    if (vkWaitForFences(
+            _device.getDevice(),
+            1,
+            &_renderer.getCurrentInFlightFences(),
+            VK_TRUE,
+            UINT64_MAX
+        ) != VK_SUCCESS) {
+        throw std::runtime_error(
+            "FrameRenderer::waitForCurrentFrame() -> failed to wait for the "
+            "current frame"
+        );
+    }
 }
 
 } // namespace fluid::graphics

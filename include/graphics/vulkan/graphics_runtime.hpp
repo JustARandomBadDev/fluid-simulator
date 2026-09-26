@@ -1,7 +1,7 @@
 #ifndef FLUID_GRAPHICS_VULKAN_GRAPHICS_RUNTIME_HPP
 #define FLUID_GRAPHICS_VULKAN_GRAPHICS_RUNTIME_HPP
 
-#include <vector>
+#include <span>
 
 #include <vulkan/vulkan.h>
 
@@ -11,11 +11,10 @@
 #include "graphics/vulkan/graphic_pipeline.hpp"
 #include "graphics/vulkan/graphics_config.hpp"
 #include "graphics/vulkan/instance.hpp"
-#include "graphics/vulkan/particle_vertex.hpp"
+#include "graphics/vulkan/particle_buffer.hpp"
 #include "graphics/vulkan/renderer.hpp"
 #include "graphics/vulkan/runtime_lifecycle.hpp"
 #include "graphics/vulkan/swapchain.hpp"
-#include "graphics/vulkan/vulkan_buffer.hpp"
 
 namespace fluid::core {
 class Camera;
@@ -24,26 +23,27 @@ class Camera;
 namespace fluid::graphics {
 
 class GraphicsRuntime {
-public:
+  public:
     GraphicsRuntime();
     ~GraphicsRuntime();
 
-    GraphicsRuntime(const GraphicsRuntime&) = delete;
-    GraphicsRuntime& operator=(const GraphicsRuntime&) = delete;
+    GraphicsRuntime(const GraphicsRuntime &) = delete;
+    GraphicsRuntime &operator=(const GraphicsRuntime &) = delete;
 
-    void init(const GraphicsRuntimeConfig& config);
-    void render(const core::Camera& camera);
+    void init(const GraphicsRuntimeConfig &config);
+    void updateParticles(std::span<const ParticleVertex> p_particles);
+    void render(const core::Camera &camera);
     void cleanup();
 
     float getAspectRatio() const;
 
-private:
+  private:
     Instance instance;
     Device device;
-    VulkanBuffer particleVertexBuffer;
     Renderer renderer;
     Swapchain swapchain;
     GraphicPipeline graphicPipeline;
+    ParticleBuffer _particle_buffer;
     GraphicsRuntimeLifecycle runtimeLifecycle;
     CommandRecorder frameCommandRecorder;
     FrameRenderer frameRenderer;
@@ -52,12 +52,10 @@ private:
     VulkanHostConfig _host_config;
     bool _swapchain_needs_recreate = false;
     bool _initialized = false;
-    uint32_t _particle_count = 0;
 
     bool recreateSwapchain();
     VkExtent2D getFramebufferExtent() const;
     bool ensureSwapchainReady();
-    static std::vector<ParticleVertex> makeValidationParticles();
 };
 
 } // namespace fluid::graphics

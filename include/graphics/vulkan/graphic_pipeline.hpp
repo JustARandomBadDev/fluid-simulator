@@ -17,23 +17,30 @@ struct CameraPushConstants {
 };
 
 class GraphicPipeline {
-public:
-    void createRenderPass(Swapchain& p_swapchain, Device& p_device);
+  public:
+    void createRenderPass(Swapchain &p_swapchain, Device &p_device);
     void createGraphicsPipeline(
-        const std::filesystem::path& vertex_shader_path,
-        const std::filesystem::path& fragment_shader_path,
-        Device& p_device
+        const std::filesystem::path &vertex_shader_path,
+        const std::filesystem::path &fragment_shader_path,
+        Device &p_device
     );
-    void cleanup(Device& p_device);
+    void cleanup(Device &p_device);
 
-    VkShaderModule createShaderModule(const std::vector<char>& code, Device& p_device);
-    static std::vector<char> readFile(const std::filesystem::path& filename);
+    VkShaderModule
+    createShaderModule(const std::vector<char> &code, Device &p_device);
+    static std::vector<char> readFile(const std::filesystem::path &filename);
 
-    VkRenderPass getRenderPass() const { return renderPass; }
-    const VkPipeline& getParticlePipeline() const { return particlePipeline; }
-    const VkPipelineLayout& getParticlePipelineLayout() const { return particlePipelineLayout; }
+    VkRenderPass getRenderPass() const {
+        return renderPass;
+    }
+    const VkPipeline &getParticlePipeline() const {
+        return particlePipeline;
+    }
+    const VkPipelineLayout &getParticlePipelineLayout() const {
+        return particlePipelineLayout;
+    }
 
-private:
+  private:
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkPipelineLayout particlePipelineLayout = VK_NULL_HANDLE;
     VkPipeline particlePipeline = VK_NULL_HANDLE;

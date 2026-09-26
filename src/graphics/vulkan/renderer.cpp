@@ -8,23 +8,29 @@
 
 namespace fluid::graphics {
 
-void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
-    QueueFamilyIndices queueFamilyIndices = p_device.findQueueFamilies(
-        p_device.getPhysicalDevice(),
-        p_instance
-    );
+void Renderer::createCommandPool(Device &p_device, Instance &p_instance) {
+    QueueFamilyIndices queueFamilyIndices =
+        p_device.findQueueFamilies(p_device.getPhysicalDevice(), p_instance);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
-    if (vkCreateCommandPool(p_device.getDevice(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-        throw std::runtime_error("Renderer::createCommandPool() -> failed to create graphics command pool");
+    if (vkCreateCommandPool(
+            p_device.getDevice(),
+            &poolInfo,
+            nullptr,
+            &commandPool
+        ) != VK_SUCCESS) {
+        throw std::runtime_error(
+            "Renderer::createCommandPool() -> failed to create graphics "
+            "command pool"
+        );
     }
 }
 
-void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
+void Renderer::createCommandBuffers(Device &p_device, uint32_t p_image_count) {
     if (!commandBuffers.empty()) {
         vkFreeCommandBuffers(
             p_device.getDevice(),
@@ -44,9 +50,16 @@ void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
 
-    if (vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(
+            p_device.getDevice(),
+            &allocInfo,
+            commandBuffers.data()
+        ) != VK_SUCCESS) {
         commandBuffers.clear();
-        throw std::runtime_error("Renderer::createCommandBuffers() -> failed to allocate command buffers");
+        throw std::runtime_error(
+            "Renderer::createCommandBuffers() -> failed to allocate command "
+            "buffers"
+        );
     }
 
     currentFrame = framesInFlight == 0 ? 0 : (currentFrame % framesInFlight);
@@ -63,12 +76,15 @@ void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
                 &copyAllocInfo,
                 &copyCommandBuffer
             ) != VK_SUCCESS) {
-            throw std::runtime_error("Renderer::createCommandBuffers() -> failed to allocate copy command buffer");
+            throw std::runtime_error(
+                "Renderer::createCommandBuffers() -> failed to allocate copy "
+                "command buffer"
+            );
         }
     }
 }
 
-void Renderer::cleanupSyncObjects(Device& p_device) {
+void Renderer::cleanupSyncObjects(Device &p_device) {
     if (p_device.getDevice() == VK_NULL_HANDLE) return;
 
     for (VkSemaphore semaphore : imageAvailableSemaphores) {
@@ -94,7 +110,7 @@ void Renderer::cleanupSyncObjects(Device& p_device) {
 }
 
 void Renderer::createSyncObjects(
-    Device& p_device,
+    Device &p_device,
     uint32_t p_frames_in_flight,
     uint32_t p_image_count
 ) {
@@ -128,7 +144,10 @@ void Renderer::createSyncObjects(
                     nullptr,
                     &inFlightFences[i]
                 ) != VK_SUCCESS) {
-                throw std::runtime_error("Renderer::createSyncObjects() -> failed to create frame synchronization objects");
+                throw std::runtime_error(
+                    "Renderer::createSyncObjects() -> failed to create frame "
+                    "synchronization objects"
+                );
             }
         }
 
@@ -139,7 +158,10 @@ void Renderer::createSyncObjects(
                     nullptr,
                     &renderFinishedSemaphores[i]
                 ) != VK_SUCCESS) {
-                throw std::runtime_error("Renderer::createSyncObjects() -> failed to create render-finished semaphore");
+                throw std::runtime_error(
+                    "Renderer::createSyncObjects() -> failed to create "
+                    "render-finished semaphore"
+                );
             }
         }
     } catch (...) {
@@ -151,17 +173,21 @@ void Renderer::createSyncObjects(
 }
 
 void Renderer::copyBuffer(
-    const VulkanBuffer& p_source,
-    const VulkanBuffer& p_destination,
+    const VulkanBuffer &p_source,
+    const VulkanBuffer &p_destination,
     VkDeviceSize p_size,
-    Device& p_device
+    Device &p_device
 ) {
     if (copyCommandBuffer == VK_NULL_HANDLE) {
-        throw std::runtime_error("Renderer::copyBuffer() -> copy command buffer is not initialized");
+        throw std::runtime_error(
+            "Renderer::copyBuffer() -> copy command buffer is not initialized"
+        );
     }
 
     if (vkResetCommandBuffer(copyCommandBuffer, 0) != VK_SUCCESS) {
-        throw std::runtime_error("Renderer::copyBuffer() -> failed to reset copy command buffer");
+        throw std::runtime_error(
+            "Renderer::copyBuffer() -> failed to reset copy command buffer"
+        );
     }
 
     VkCommandBufferBeginInfo beginInfo{};
@@ -169,7 +195,9 @@ void Renderer::copyBuffer(
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     if (vkBeginCommandBuffer(copyCommandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("Renderer::copyBuffer() -> failed to begin copy command buffer");
+        throw std::runtime_error(
+            "Renderer::copyBuffer() -> failed to begin copy command buffer"
+        );
     }
 
     VkBufferCopy copyRegion{};
@@ -183,7 +211,9 @@ void Renderer::copyBuffer(
     );
 
     if (vkEndCommandBuffer(copyCommandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("Renderer::copyBuffer() -> failed to record copy command buffer");
+        throw std::runtime_error(
+            "Renderer::copyBuffer() -> failed to record copy command buffer"
+        );
     }
 
     VkSubmitInfo submitInfo{};
@@ -191,15 +221,24 @@ void Renderer::copyBuffer(
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &copyCommandBuffer;
 
-    if (vkQueueSubmit(p_device.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-        throw std::runtime_error("Renderer::copyBuffer() -> failed to submit buffer copy");
+    if (vkQueueSubmit(
+            p_device.getGraphicsQueue(),
+            1,
+            &submitInfo,
+            VK_NULL_HANDLE
+        ) != VK_SUCCESS) {
+        throw std::runtime_error(
+            "Renderer::copyBuffer() -> failed to submit buffer copy"
+        );
     }
     if (vkQueueWaitIdle(p_device.getGraphicsQueue()) != VK_SUCCESS) {
-        throw std::runtime_error("Renderer::copyBuffer() -> failed while waiting for buffer copy");
+        throw std::runtime_error(
+            "Renderer::copyBuffer() -> failed while waiting for buffer copy"
+        );
     }
 }
 
-void Renderer::cleanupFrameResources(Device& p_device) {
+void Renderer::cleanupFrameResources(Device &p_device) {
     cleanupSyncObjects(p_device);
 
     if (!commandBuffers.empty() && commandPool != VK_NULL_HANDLE &&
@@ -218,10 +257,11 @@ void Renderer::cleanupFrameResources(Device& p_device) {
     currentFrame = 0;
 }
 
-void Renderer::cleanup(Device& p_device) {
+void Renderer::cleanup(Device &p_device) {
     cleanupFrameResources(p_device);
 
-    if (commandPool != VK_NULL_HANDLE && p_device.getDevice() != VK_NULL_HANDLE) {
+    if (commandPool != VK_NULL_HANDLE &&
+        p_device.getDevice() != VK_NULL_HANDLE) {
         vkDestroyCommandPool(p_device.getDevice(), commandPool, nullptr);
     }
 

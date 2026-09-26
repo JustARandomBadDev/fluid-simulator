@@ -1,0 +1,42 @@
+
+BasedOnStyle: LLVM
+
+# Indentation
+IndentWidth: 4
+ContinuationIndentWidth: 4
+TabWidth: 4
+UseTab: Never
+
+# Line length
+ColumnLimit: 80
+
+# Braces
+BreakBeforeBraces: Attach
+
+# Pointers and references
+PointerAlignment: Right
+ReferenceAlignment: Right
+DerivePointerAlignment: false
+
+# Short statements
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+
+# Function calls & Function declarations and definitions
+BinPackArguments: false
+BinPackParameters: OnePerLine
+
+# Multiline function formatting
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AlignAfterOpenBracket: false
+BreakAfterOpenBracketFunction: true
+BreakBeforeCloseBracketFunction: true
+
+# Other
+NamespaceIndentation: None
+IndentPPDirectives: Leave
+SortIncludes: true
+IncludeBlocks: Preserve
+MaxEmptyLinesToKeep: 1
