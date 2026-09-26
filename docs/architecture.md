@@ -34,7 +34,7 @@ Initialization follows this order:
 4. One persistently mapped particle vertex buffer is created for each frame in
    flight. The default is two frames.
 5. `ParticleSystem` allocates its arrays at the 100,000-particle capacity and
-   inserts 2,000 particles. `CpuScalarSolver` allocates its working arrays and
+   inserts 20,000 particles. `CpuScalarSolver` allocates its working arrays and
    Uniform Grid.
 
 Each visible frame then performs:

@@ -9,7 +9,7 @@ lookup, and OpenMP work sharing for per-particle computations.
 ## Initial state and capacity
 
 `ParticleSystem` reserves all arrays for 100,000 particles and initializes
-2,000 active particles in a small region near the bottom of a 1 × 20 × 1
+20,000 active particles in a small region near the bottom of a 2 × 20 × 2
 axis-aligned box. Initial velocities, densities, and pressures are zero.
 
 The active count is tracked separately from capacity. Adding a particle writes

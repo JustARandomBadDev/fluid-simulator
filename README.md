@@ -29,7 +29,7 @@ https://github.com/user-attachments/assets/5d53c393-3607-4f4b-9a94-7fd8b020c329
 - A smoke-test mode that exercises rendering, window resize, swapchain
   recreation, and clean shutdown.
 
-The application currently initializes 2,000 particles. Storage and rendering
+The application currently initializes 20,000 particles. Storage and rendering
 buffers are preallocated for up to 100,000 particles.
 
 ## Build
