@@ -19,11 +19,11 @@ void ParticleSystem::init() {
     _particles.densities.resize(MAX_PARTICLES);
     _particles.pressures.resize(MAX_PARTICLES);
 
-    for (int i = 0; i < 2000; i++) {
+    for (int i = 0; i < 20000; i++) {
         if (!addParticle(
-                {float(std::rand() % 1000) / 2000.f + 0.25f,
-                    float(std::rand() % 1000) / 1000.f + 0.50f,
-                    float(std::rand() % 1000) / 2000.f + 0.25f}
+                {float(std::rand() % 1000) / 1000.f + 0.5f,
+                    float(std::rand() % 1000) / 400.f + 0.5f,
+                    float(std::rand() % 1000) / 1000.f + 0.5f}
             )) {
             throw std::runtime_error(
                 "ParticleSystem::initializeBox() -> capacity exceeded"

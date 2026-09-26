@@ -26,7 +26,7 @@ class Application {
   private:
     GLFWwindow *_window = nullptr;
     graphics::GraphicsRuntime _graphics;
-    core::Camera _camera{{0.5f, 0.5f, 2.5f}, 45.0f, 16.0f / 9.0f, 0.1f, 20.0f};
+    core::Camera _camera{{1.f, 1.f, 5.f}, 45.0f, 16.0f / 9.0f, 0.1f, 20.0f};
     bool _glfw_initialized = false;
 
     simulation::FluidSimulator _fluid_simulator;
