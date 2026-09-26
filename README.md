@@ -11,7 +11,7 @@ in a GLFW window.
 
 ## Demo
 
-
+https://github.com/user-attachments/assets/5d53c393-3607-4f4b-9a94-7fd8b020c329
 
 ## Current features
 
