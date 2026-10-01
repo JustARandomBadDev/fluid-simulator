@@ -5,6 +5,8 @@
 #include <string_view>
 #include <utility>
 
+#include <cuda_runtime_api.h>
+
 #include "app/application.hpp"
 #include "benchmark/benchmark.hpp"
 #include "config.hpp"
@@ -73,6 +75,22 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
     return options;
 }
 
+void validateBackendAvailability(fluid::SimulationBackend backend) {
+    if (backend != fluid::SimulationBackend::Cuda) return;
+
+    int deviceCount = 0;
+    const cudaError_t result = cudaGetDeviceCount(&deviceCount);
+    if (result != cudaSuccess) {
+        throw std::runtime_error(
+            "CUDA backend unavailable: " +
+            std::string(cudaGetErrorString(result))
+        );
+    }
+    if (deviceCount == 0) {
+        throw std::runtime_error("CUDA backend unavailable: no device found");
+    }
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -82,6 +100,8 @@ int main(int argc, char** argv) {
             printHelp();
             return 0;
         }
+
+        validateBackendAvailability(options.backend);
 
         if (options.benchmark) {
             fluid::benchmark::BenchmarkConfig config;

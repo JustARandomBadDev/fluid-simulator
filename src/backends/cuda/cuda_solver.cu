@@ -1,5 +1,4 @@
 #include "backends/cuda/cuda_solver.hpp"
-#include "simulation/particle_system.hpp"
 #include "simulation/sph_constants.hpp"
 #include "simulation/sph_parameters.hpp"
 

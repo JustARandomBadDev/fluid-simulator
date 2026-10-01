@@ -4,9 +4,6 @@
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
-#include <string>
-
-#include <cuda_runtime_api.h>
 
 #include "simulation/fluid_simulator.hpp"
 
@@ -24,22 +21,6 @@ const char* backendName(SimulationBackend backend) {
     return "Unknown";
 }
 
-void validateBackendAvailability(SimulationBackend backend) {
-    if (backend != SimulationBackend::Cuda) return;
-
-    int deviceCount = 0;
-    const cudaError_t result = cudaGetDeviceCount(&deviceCount);
-    if (result != cudaSuccess) {
-        throw std::runtime_error(
-            "CUDA backend unavailable: " +
-            std::string(cudaGetErrorString(result))
-        );
-    }
-    if (deviceCount == 0) {
-        throw std::runtime_error("CUDA backend unavailable: no device found");
-    }
-}
-
 } // namespace
 
 int run(const BenchmarkConfig& config) {
@@ -48,8 +29,6 @@ int run(const BenchmarkConfig& config) {
             "benchmark measured step count must be greater than 0"
         );
     }
-
-    validateBackendAvailability(config.simulation.backend);
 
     simulation::FluidSimulator simulator(config.simulation);
     simulator.init(config.simulation);
