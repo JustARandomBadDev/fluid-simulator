@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.24...4.4)
-project(fluid_simulator VERSION 0.1.0 LANGUAGES CXX)
+project(fluid_simulator VERSION 0.1.0 LANGUAGES CXX CUDA)
+
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_LIBRARIES OFF)
+set(CMAKE_CUDA_USE_RESPONSE_FILE_FOR_OBJECTS OFF)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -47,6 +51,7 @@ add_custom_target(fluid_shaders DEPENDS ${SHADER_BINARIES})
 file(GLOB_RECURSE FLUID_SIMULATOR_SOURCES
     CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cu"
 )
 
 add_executable(fluid-simulator
@@ -78,10 +83,12 @@ target_compile_definitions(fluid-simulator
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(fluid-simulator PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Wshadow
-        -Wconversion
+        $<$<COMPILE_LANGUAGE:CXX>:
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Wshadow
+            -Wconversion
+        >
     )
 endif()

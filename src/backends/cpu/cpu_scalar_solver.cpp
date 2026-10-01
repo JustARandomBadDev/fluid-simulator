@@ -40,8 +40,6 @@ void CpuScalarSolver::step(ParticleData &p_particles, float p_dt) {
 }
 
 void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
-    const float density_factor = _params.particleMass * _constants.poly6;
-
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -80,7 +78,7 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
 
                         const float q = _constants.h2 - r2;
 
-                        density += density_factor * q * q * q;
+                        density += _constants.density_factor * q * q * q;
                     }
                 }
             }
@@ -103,10 +101,6 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
     constexpr float gravity_x = 0.0f;
     constexpr float gravity_y = -9.81f;
     constexpr float gravity_z = 0.0f;
-
-    const float pressure_factor = _params.particleMass * _constants.spiky;
-    const float viscosity_factor =
-        _params.viscosity * _params.particleMass * _constants.spiky;
 
     #pragma omp for schedule(static)
 
@@ -167,7 +161,7 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
                             distance_to_edge * distance_to_edge;
 
                         const float pressure_scalar =
-                            pressure_factor *
+                            _constants.pressure_factor *
                             (pressure_i + _pressure_terms[j]) *
                             distance_to_edge2 * inverse_r;
 
@@ -175,7 +169,7 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
                         pressure_y += ry * pressure_scalar;
                         pressure_z += rz * pressure_scalar;
 
-                        const float viscosity_scalar = viscosity_factor *
+                        const float viscosity_scalar = _constants.viscosity_factor *
                                                        _inverse_densities[j] *
                                                        distance_to_edge;
 

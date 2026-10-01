@@ -3,10 +3,10 @@
 [Back to the README](../README.md)
 
 Fluid Simulator currently consists of a GLFW application, a backend-neutral
-simulation facade with one CPU implementation, and a Vulkan particle renderer.
-The code is separated by responsibility rather than built as independent
-libraries: CMake compiles every `src/*.cpp` file into one `fluid-simulator`
-executable.
+simulation facade with CPU and CUDA implementations, and a Vulkan particle
+renderer. The code is separated by responsibility rather than built as
+independent libraries: CMake compiles the `src/*.cpp` and `src/*.cu` files into
+one `fluid-simulator` executable.
 
 ## Components
 
@@ -16,6 +16,7 @@ executable.
 | Core            | `include/core`, `src/core`                       | Camera matrices and frame delta timing                                                              |
 | Simulation      | `include/simulation`, `src/simulation`           | Particle ownership, solver interface, SPH parameters/constants, and spatial grid                    |
 | CPU backend     | `include/backends/cpu`, `src/backends/cpu`       | Scalar SPH implementation and OpenMP work sharing                                                   |
+| CUDA backend    | `include/backends/cuda`, `src/backends/cuda`     | Naive GPU SPH implementation and CUDA buffer ownership                                              |
 | Vulkan graphics | `include/graphics/vulkan`, `src/graphics/vulkan` | Instance/device setup, swapchain lifecycle, pipeline, buffers, command recording, and presentation  |
 | Shaders         | `shaders`                                        | Particle vertex transform and circular point-sprite coloring                                        |
 
@@ -34,13 +35,16 @@ Initialization follows this order:
 4. One persistently mapped particle vertex buffer is created for each frame in
    flight. The default is two frames.
 5. `ParticleSystem` allocates its arrays at the 100,000-particle capacity and
-   inserts 20,000 particles. `CpuScalarSolver` allocates its working arrays and
-   Uniform Grid.
+   inserts 20,000 particles. The active `CudaSolver` allocates device arrays
+   for the same capacity and uploads the box dimensions, SPH parameters, and
+   derived constants.
 
 Each visible frame then performs:
 
 1. GLFW event polling and framebuffer-size handling.
-2. A CPU simulation step using the measured frame delta, capped at 1 ms.
+2. A CUDA simulation step using the measured frame delta, capped at 1 ms. The
+   active host particle data is copied to CUDA, three kernels run, and the
+   resulting particle data is copied back to the host.
 3. A copy of active particle positions from `ParticleData` into the
    application's `ParticleVertex` array.
 4. A wait for the current frame fence, followed by a `memcpy` into that frame's
@@ -62,11 +66,30 @@ the window is minimized.
 - initialize a backend for a simulation box;
 - advance a mutable `ParticleData` instance by one step.
 
-`CpuScalarSolver` is the only concrete implementation. There are no CUDA
-sources, CUDA CMake language settings, device-resident particle containers, or
-Vulkan external-memory primitives in the current repository. A future CUDA
-backend will therefore require both a new solver implementation and an
-explicit data-ownership/interoperability design.
+Two concrete implementations use this boundary:
+
+```text
+Solver
+├── CpuScalarSolver   (OpenMP + Uniform Grid)
+└── CudaSolver        (naive CUDA all-pairs search)
+```
+
+The application currently constructs `CudaSolver` directly, so switching
+backends requires a code change. The CUDA solver mirrors the CPU solver's three
+SPH stages, using one CUDA thread per active particle and blocks of 256 threads.
+Its device allocations are created once during initialization and reused for
+subsequent steps.
+
+Each step copies positions and velocities to the device with `cudaMemcpy`,
+runs the density/pressure, acceleration, and integration/collision kernels,
+synchronizes the device, and copies positions, velocities, densities, and
+pressures back to `ParticleData`. The density and acceleration kernels scan
+every active particle and therefore perform O(n²) work. The CPU Uniform Grid is
+not used by the CUDA backend.
+
+CUDA and Vulkan currently own separate allocations. There are no Vulkan
+external-memory or external-semaphore primitives in the repository, so
+rendering consumes the host copy returned by the CUDA step.
 
 The simulation details are covered in [Simulation](simulation.md).
 
@@ -114,14 +137,18 @@ renderer:
 
 ## Current architectural constraints
 
-- The application selects `CpuScalarSolver` directly; there is no runtime
+- The application selects `CudaSolver` directly; there is no runtime
   backend selection.
 - Simulation storage uses host `std::vector` allocations and is directly
-  mutable through `ParticleData`.
+  mutable through `ParticleData`; CUDA mirrors the active data in separate
+  device allocations for each step.
 - Rendering needs an additional AoS position array because simulation data is
   stored as SoA.
-- The Uniform Grid rebuild is serial; only the particle physics passes use
-  OpenMP.
+- The CUDA density and acceleration kernels use an O(n²) all-pairs search.
+- Host/device copies and a device synchronization remain in every CUDA step.
+- Vulkan and CUDA do not share buffers or synchronization primitives.
+- The CPU Uniform Grid rebuild is serial; only the CPU particle physics passes
+  use OpenMP.
 - `GridCell` remains in the source tree but is not used by the active flat-array
   Uniform Grid implementation.
 - The project produces one executable and does not expose installable library

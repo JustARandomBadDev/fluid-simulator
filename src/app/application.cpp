@@ -1,5 +1,6 @@
 #include "app/application.hpp"
 #include "backends/cpu/cpu_scalar_solver.hpp"
+#include "backends/cuda/cuda_solver.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -22,7 +23,7 @@ constexpr const char *kWindowTitle = "Fluid Simulator - Vulkan particles";
 } // namespace
 
 Application::Application()
-    : _fluid_simulator(std::make_unique<simulation::CpuScalarSolver>()) {}
+    : _fluid_simulator(std::make_unique<simulation::CudaSolver>()) {}
 
 Application::~Application() {
     cleanup();

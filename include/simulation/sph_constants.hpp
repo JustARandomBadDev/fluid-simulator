@@ -12,6 +12,11 @@ struct SphConstants {
 
     float poly6;
     float spiky;
+
+    float density_factor;
+
+    float pressure_factor;
+    float viscosity_factor;
 };
 
 SphConstants makeSphConstants(const SphParameters &p_params);

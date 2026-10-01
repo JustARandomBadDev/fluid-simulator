@@ -1,0 +1,12 @@
+CompileFlags:
+  Remove:
+    - -forward-unknown-to-host-compiler
+    - --generate-code=*
+
+---
+If:
+  PathMatch: .*\.cu
+
+CompileFlags:
+  Add:
+    - --cuda-gpu-arch=sm_75

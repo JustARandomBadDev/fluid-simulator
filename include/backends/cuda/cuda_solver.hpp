@@ -1,0 +1,57 @@
+#ifndef FLUID_SIMULATOR_CUDA_SOLVER_HPP
+#define FLUID_SIMULATOR_CUDA_SOLVER_HPP
+
+#include "simulation/solver.hpp"
+#include "simulation/sph_constants.hpp"
+#include "simulation/sph_parameters.hpp"
+
+namespace {
+
+struct BoxDim {
+    const float x;
+    const float y;
+    const float z;
+};
+
+}
+
+namespace fluid::simulation {
+
+class CudaSolver : public Solver {
+public:
+    CudaSolver() = default;
+    CudaSolver(const CudaSolver&) = delete;
+
+    ~CudaSolver();
+
+    void init(glm::vec3 p_box_dim) override;
+    void step(ParticleData& p_particles, float p_dt) override;
+
+private:
+    float* _position_x;
+    float* _position_y;
+    float* _position_z;
+
+    float* _velocity_x;
+    float* _velocity_y;
+    float* _velocity_z;
+
+    float* _densities;
+    float* _pressures;
+
+    float* _inverse_densities;
+    float* _pressure_terms;
+
+    float* _accelerations_x;
+    float* _accelerations_y;
+    float* _accelerations_z;
+
+    BoxDim* _box_dim;
+
+    SphParameters* _cuda_params;
+    SphConstants* _cuda_constants;
+};
+
+}
+
+#endif

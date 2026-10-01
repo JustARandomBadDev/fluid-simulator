@@ -2,9 +2,10 @@
 
 [Back to the README](../README.md) · [Architecture](architecture.md)
 
-The implemented simulation backend is a scalar CPU SPH solver. It uses a
-Structure-of-Arrays particle layout, a flat Uniform Grid for neighborhood
-lookup, and OpenMP work sharing for per-particle computations.
+The project implements two SPH backends behind the same `Solver` interface. The
+scalar CPU solver uses a flat Uniform Grid and OpenMP work sharing. The initial
+CUDA solver mirrors the same simulation stages with a deliberately naive GPU
+implementation. The application currently selects the CUDA backend directly.
 
 ## Initial state and capacity
 
@@ -30,6 +31,9 @@ keeps consecutive values for one field contiguous in memory. Renderer input is
 different: the application gathers active positions into an array of
 `ParticleVertex`, whose only field is a `glm::vec3`.
 
+The CUDA solver allocates matching device arrays once for the maximum particle
+capacity and reuses them across simulation steps.
+
 ## SPH parameters
 
 The parameters are compile-time defaults in `SphParameters`; the application
@@ -50,17 +54,21 @@ radius along with the Poly6 and Spiky kernel factors when a solver is created.
 
 ## Simulation step
 
-`CpuScalarSolver::step` caps the supplied frame delta at 1 ms, refreshes the
-Uniform Grid, and enters one OpenMP parallel region. The region contains three
-`omp for schedule(static)` passes. The implicit barrier at the end of each pass
-keeps their dependencies ordered.
+Both solvers cap the supplied frame delta at 1 ms and execute the same three
+stages. `CpuScalarSolver` refreshes the Uniform Grid and enters one OpenMP
+parallel region containing three `omp for schedule(static)` passes. The
+implicit barrier at the end of each pass keeps their dependencies ordered.
+
+`CudaSolver` launches a separate kernel for each stage. Each kernel assigns one
+CUDA thread to an active particle and uses blocks of 256 threads.
 
 ### 1. Density and pressure
 
-For each particle, the solver visits candidates from neighboring grid cells,
-rejects candidates outside the smoothing radius, and accumulates density with
-the Poly6 kernel factor. Pressure is clamped to a non-negative value based on
-the configured rest density and stiffness.
+For each particle, both solvers reject neighbors outside the smoothing radius
+and accumulate density with the Poly6 kernel factor. The CPU backend obtains
+candidates from neighboring grid cells, while the CUDA kernel scans every
+active particle. Pressure is clamped to a non-negative value based on the
+configured rest density and stiffness.
 
 The pass also caches inverse density and the pressure term used by the force
 pass. Density is clamped to a small positive value only for the reciprocal, to
@@ -68,9 +76,9 @@ avoid division by zero.
 
 ### 2. Acceleration
 
-The second pass revisits the local neighbors and accumulates pressure and
-viscosity contributions. Self-interaction and zero-distance pairs are skipped
-for the force calculation. Gravity is then added to the resulting acceleration.
+The second pass revisits the neighbors and accumulates pressure and viscosity
+contributions. Self-interaction and zero-distance pairs are skipped for the
+force calculation. Gravity is then added to the resulting acceleration.
 
 ### 3. Integration and collision
 
@@ -79,7 +87,7 @@ acceleration and capped time step. Positions are clamped independently against
 the six box planes. When a particle reaches a plane, the velocity component
 normal to that plane is set to zero; there is no restitution or friction model.
 
-## Uniform Grid
+## CPU Uniform Grid
 
 The Uniform Grid cell size equals the SPH smoothing radius. Its dimensions are
 computed from the simulation-box dimensions, with one additional cell on each
@@ -105,14 +113,43 @@ Because the cell width matches the smoothing radius, each SPH pass searches the
 particle's cell and its immediate neighbors: a maximum of 27 grid cells instead
 of scanning every active particle.
 
+The CUDA backend does not use this grid yet.
+
+## CUDA execution and data flow
+
+`CudaSolver::init` allocates device buffers for positions, velocities,
+densities, pressures, cached density terms, accelerations, box dimensions, and
+SPH parameters/constants. These allocations persist until the solver is
+destroyed.
+
+Each simulation step currently performs:
+
+1. six host-to-device `cudaMemcpy` operations for positions and velocities;
+2. the density/pressure kernel;
+3. the acceleration kernel;
+4. the integration and box-collision kernel;
+5. an explicit device synchronization;
+6. eight device-to-host copies for positions, velocities, densities, and
+   pressures.
+
+The density and acceleration kernels compare each particle with every other
+active particle. Their neighbor search is therefore O(n²). This implementation
+is a correctness and profiling baseline rather than an optimized GPU solver.
+
+The returned host positions are repacked into Vulkan vertices after the CUDA
+step. CUDA and Vulkan use separate buffers; external-memory interoperability is
+not implemented.
+
 ## Parallelization and performance scope
 
-The density/pressure, acceleration, and integration loops are parallelized with
-OpenMP. Grid refresh, position repacking for rendering, and upload to the mapped
-Vulkan buffer remain serial. The project does not currently include a benchmark
-target or published performance measurements, so no particle throughput or
-frame-rate guarantees are claimed.
+The CPU density/pressure, acceleration, and integration loops are parallelized
+with OpenMP. Its grid refresh remains serial. The CUDA backend parallelizes one
+particle per thread, but its all-pairs search and synchronous transfers remain
+major limitations. Position repacking and upload to the mapped Vulkan buffer
+also remain on the CPU.
 
-The solver is scalar C++; there are no explicit SIMD intrinsics and no CUDA
-backend. CUDA simulation and Vulkan/CUDA interoperability are planned work, not
-current capabilities.
+The project does not currently include a benchmark target or published
+performance measurements, so no CPU/CUDA throughput or frame-rate guarantees
+are claimed. Planned CUDA work includes a GPU spatial grid, accelerated
+neighbor lookup, improved memory access and shared-memory use, transfer
+reduction, profiling, kernel optimization, and Vulkan/CUDA shared buffers.
