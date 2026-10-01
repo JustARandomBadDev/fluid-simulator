@@ -67,11 +67,9 @@ __global__ void pressureAndDensityKernel(
     const SphParameters* p_params,
     const SphConstants* p_constants
 ) {
-    const std::size_t index =
-        blockIdx.x * blockDim.x + threadIdx.x;
+    const std::size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (index >= p_count)
-        return;
+    if (index >= p_count) return;
 
     const float pix = p_position_x[index];
     const float piy = p_position_y[index];
@@ -84,43 +82,28 @@ __global__ void pressureAndDensityKernel(
         const float ry = piy - p_position_y[j];
         const float rz = piz - p_position_z[j];
 
-        const float r2 =
-            rx * rx +
-            ry * ry +
-            rz * rz;
+        const float r2 = rx * rx + ry * ry + rz * rz;
 
-        if (r2 >= p_constants->h2)
-            continue;
+        if (r2 >= p_constants->h2) continue;
 
         const float q = p_constants->h2 - r2;
 
-        density +=
-            p_constants->density_factor *
-            q * q * q;
+        density += p_constants->density_factor * q * q * q;
     }
 
-    const float pressure = fmaxf(
-        p_params->stiffness *
-            (density - p_params->restDensity),
-        0.0f
-    );
+    const float pressure =
+        fmaxf(p_params->stiffness * (density - p_params->restDensity), 0.0f);
 
-    const float safe_density =
-        fmaxf(density, 1e-6f);
+    const float safe_density = fmaxf(density, 1e-6f);
 
-    const float inverse_density =
-        1.0f / safe_density;
+    const float inverse_density = 1.0f / safe_density;
 
     p_densities[index] = density;
     p_pressures[index] = pressure;
 
-    p_inverse_densities[index] =
-        inverse_density;
+    p_inverse_densities[index] = inverse_density;
 
-    p_pressure_terms[index] =
-        pressure *
-        inverse_density *
-        inverse_density;
+    p_pressure_terms[index] = pressure * inverse_density * inverse_density;
 }
 
 __global__ void accelerationKernel(
@@ -147,11 +130,9 @@ __global__ void accelerationKernel(
     const float p_gravity_y,
     const float p_gravity_z
 ) {
-    const std::size_t index =
-        blockIdx.x * blockDim.x + threadIdx.x;
+    const std::size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (index >= p_count)
-        return;
+    if (index >= p_count) return;
 
     const float pix = p_position_x[index];
     const float piy = p_position_y[index];
@@ -161,8 +142,7 @@ __global__ void accelerationKernel(
     const float viy = p_velocity_y[index];
     const float viz = p_velocity_z[index];
 
-    const float pressure_i =
-        p_pressure_terms[index];
+    const float pressure_i = p_pressure_terms[index];
 
     float pressure_x = 0.0f;
     float pressure_y = 0.0f;
@@ -173,73 +153,47 @@ __global__ void accelerationKernel(
     float viscosity_z = 0.0f;
 
     for (std::size_t j = 0; j < p_count; j++) {
-        if (index == j)
-            continue;
+        if (index == j) continue;
 
         const float rx = pix - p_position_x[j];
         const float ry = piy - p_position_y[j];
         const float rz = piz - p_position_z[j];
 
-        const float r2 =
-            rx * rx +
-            ry * ry +
-            rz * rz;
+        const float r2 = rx * rx + ry * ry + rz * rz;
 
-        if (r2 <= 0.0f ||
-            r2 >= p_constants->h2)
-            continue;
+        if (r2 <= 0.0f || r2 >= p_constants->h2) continue;
 
         const float r = sqrtf(r2);
         const float inverse_r = 1.0f / r;
 
-        const float distance_to_edge =
-            p_params->smoothingRadius - r;
+        const float distance_to_edge = p_params->smoothingRadius - r;
 
-        const float distance_to_edge2 =
-            distance_to_edge * distance_to_edge;
+        const float distance_to_edge2 = distance_to_edge * distance_to_edge;
 
-        const float pressure_scalar =
-            p_constants->pressure_factor *
-            (pressure_i + p_pressure_terms[j]) *
-            distance_to_edge2 *
-            inverse_r;
+        const float pressure_scalar = p_constants->pressure_factor *
+                                      (pressure_i + p_pressure_terms[j]) *
+                                      distance_to_edge2 * inverse_r;
 
         pressure_x += rx * pressure_scalar;
         pressure_y += ry * pressure_scalar;
         pressure_z += rz * pressure_scalar;
 
-        const float viscosity_scalar =
-            p_constants->viscosity_factor *
-            p_inverse_densities[j] *
-            distance_to_edge;
+        const float viscosity_scalar = p_constants->viscosity_factor *
+                                       p_inverse_densities[j] *
+                                       distance_to_edge;
 
-        viscosity_x +=
-            (p_velocity_x[j] - vix) *
-            viscosity_scalar;
+        viscosity_x += (p_velocity_x[j] - vix) * viscosity_scalar;
 
-        viscosity_y +=
-            (p_velocity_y[j] - viy) *
-            viscosity_scalar;
+        viscosity_y += (p_velocity_y[j] - viy) * viscosity_scalar;
 
-        viscosity_z +=
-            (p_velocity_z[j] - viz) *
-            viscosity_scalar;
+        viscosity_z += (p_velocity_z[j] - viz) * viscosity_scalar;
     }
 
-    p_accelerations_x[index] =
-        pressure_x +
-        viscosity_x +
-        p_gravity_x;
+    p_accelerations_x[index] = pressure_x + viscosity_x + p_gravity_x;
 
-    p_accelerations_y[index] =
-        pressure_y +
-        viscosity_y +
-        p_gravity_y;
+    p_accelerations_y[index] = pressure_y + viscosity_y + p_gravity_y;
 
-    p_accelerations_z[index] =
-        pressure_z +
-        viscosity_z +
-        p_gravity_z;
+    p_accelerations_z[index] = pressure_z + viscosity_z + p_gravity_z;
 }
 
 __global__ void integrateKernel(
@@ -260,11 +214,9 @@ __global__ void integrateKernel(
     const std::size_t p_count,
     const float p_dt
 ) {
-    const std::size_t index =
-        blockIdx.x * blockDim.x + threadIdx.x;
+    const std::size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (index >= p_count)
-        return;
+    if (index >= p_count) return;
 
     float* position_x = p_position_x + index;
     float* position_y = p_position_y + index;
@@ -274,14 +226,11 @@ __global__ void integrateKernel(
     float* velocity_y = p_velocity_y + index;
     float* velocity_z = p_velocity_z + index;
 
-    *velocity_x +=
-        p_accelerations_x[index] * p_dt;
+    *velocity_x += p_accelerations_x[index] * p_dt;
 
-    *velocity_y +=
-        p_accelerations_y[index] * p_dt;
+    *velocity_y += p_accelerations_y[index] * p_dt;
 
-    *velocity_z +=
-        p_accelerations_z[index] * p_dt;
+    *velocity_z += p_accelerations_z[index] * p_dt;
 
     *position_x += *velocity_x * p_dt;
     *position_y += *velocity_y * p_dt;
@@ -301,18 +250,14 @@ __global__ void integrateKernel(
 }
 
 void CudaSolver::init() {
-    BoxDim box_dim {
-        _config.box.position.x,
+    BoxDim box_dim{_config.box.position.x,
         _config.box.position.y,
         _config.box.position.z,
         _config.box.dimensions.x,
         _config.box.dimensions.y,
-        _config.box.dimensions.z
-    };
+        _config.box.dimensions.z};
 
-    const std::size_t buffer_size =
-        _config.particleCapacity *
-        sizeof(float);
+    const std::size_t buffer_size = _config.particleCapacity * sizeof(float);
 
     cudaMalloc(&_position_x, buffer_size);
     cudaMalloc(&_position_y, buffer_size);
@@ -332,27 +277,13 @@ void CudaSolver::init() {
     cudaMalloc(&_accelerations_y, buffer_size);
     cudaMalloc(&_accelerations_z, buffer_size);
 
-    cudaMalloc(
-        &_box_dim,
-        sizeof(BoxDim)
-    );
+    cudaMalloc(&_box_dim, sizeof(BoxDim));
 
-    cudaMemcpy(
-        _box_dim,
-        &box_dim,
-        sizeof(BoxDim),
-        cudaMemcpyHostToDevice
-    );
+    cudaMemcpy(_box_dim, &box_dim, sizeof(BoxDim), cudaMemcpyHostToDevice);
 
-    cudaMalloc(
-        &_cuda_params,
-        sizeof(SphParameters)
-    );
+    cudaMalloc(&_cuda_params, sizeof(SphParameters));
 
-    cudaMalloc(
-        &_cuda_constants,
-        sizeof(SphConstants)
-    );
+    cudaMalloc(&_cuda_constants, sizeof(SphConstants));
 
     cudaMemcpy(
         _cuda_params,
@@ -369,17 +300,12 @@ void CudaSolver::init() {
     );
 }
 
-void CudaSolver::step(
-    ParticleData& p_particles,
-    float p_dt
-) {
-    if (p_particles.count == 0)
-        return;
+void CudaSolver::step(ParticleData& p_particles, float p_dt) {
+    if (p_particles.count == 0) return;
 
     p_dt = std::min(p_dt, _config.maximumTimeStep);
 
-    const std::size_t size =
-        p_particles.count * sizeof(float);
+    const std::size_t size = p_particles.count * sizeof(float);
 
     cudaMemcpy(
         _position_x,
@@ -425,9 +351,7 @@ void CudaSolver::step(
 
     const std::size_t threads = _config.cuda.blockSize;
 
-    const std::size_t blocks =
-        (p_particles.count + threads - 1) /
-        threads;
+    const std::size_t blocks = (p_particles.count + threads - 1) / threads;
 
     pressureAndDensityKernel<<<blocks, threads>>>(
         _position_x,
@@ -447,9 +371,7 @@ void CudaSolver::step(
     );
 
     if (cudaGetLastError() != cudaSuccess) {
-        std::printf(
-            "CUDA error: pressureAndDensityKernel\n"
-        );
+        std::printf("CUDA error: pressureAndDensityKernel\n");
     }
 
     accelerationKernel<<<blocks, threads>>>(
@@ -478,9 +400,7 @@ void CudaSolver::step(
     );
 
     if (cudaGetLastError() != cudaSuccess) {
-        std::printf(
-            "CUDA error: accelerationKernel\n"
-        );
+        std::printf("CUDA error: accelerationKernel\n");
     }
 
     integrateKernel<<<blocks, threads>>>(
@@ -505,10 +425,7 @@ void CudaSolver::step(
     cudaError_t error = cudaDeviceSynchronize();
 
     if (error != cudaSuccess) {
-        std::printf(
-            "CUDA runtime error: %s\n",
-            cudaGetErrorString(error)
-        );
+        std::printf("CUDA runtime error: %s\n", cudaGetErrorString(error));
     }
 
     cudaMemcpy(

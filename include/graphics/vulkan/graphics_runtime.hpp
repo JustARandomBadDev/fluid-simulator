@@ -27,12 +27,12 @@ class GraphicsRuntime {
     GraphicsRuntime();
     ~GraphicsRuntime();
 
-    GraphicsRuntime(const GraphicsRuntime &) = delete;
-    GraphicsRuntime &operator=(const GraphicsRuntime &) = delete;
+    GraphicsRuntime(const GraphicsRuntime&) = delete;
+    GraphicsRuntime& operator=(const GraphicsRuntime&) = delete;
 
-    void init(const GraphicsRuntimeConfig &config);
+    void init(const GraphicsRuntimeConfig& config);
     void updateParticles(std::span<const ParticleVertex> p_particles);
-    void render(const core::Camera &camera);
+    void render(const core::Camera& camera);
     void cleanup();
 
     float getAspectRatio() const;

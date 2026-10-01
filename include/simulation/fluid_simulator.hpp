@@ -11,12 +11,12 @@ namespace fluid::simulation {
 
 class FluidSimulator {
   public:
-    explicit FluidSimulator(const SimulationConfig &config);
+    explicit FluidSimulator(const SimulationConfig& config);
     FluidSimulator(std::unique_ptr<Solver> p_solver)
         : _solver(std::move(p_solver)) {};
 
-    void init(const SimulationConfig &config);
-    const ParticleData &update(float dt);
+    void init(const SimulationConfig& config);
+    const ParticleData& update(float dt);
 
   private:
     std::unique_ptr<Solver> _solver;

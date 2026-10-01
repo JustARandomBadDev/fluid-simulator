@@ -11,11 +11,11 @@
 namespace fluid::graphics {
 
 GraphicsRuntimeLifecycle::GraphicsRuntimeLifecycle(
-    Instance &p_instance,
-    Device &p_device,
-    Renderer &p_renderer,
-    Swapchain &p_swapchain,
-    GraphicPipeline &p_graphic_pipeline
+    Instance& p_instance,
+    Device& p_device,
+    Renderer& p_renderer,
+    Swapchain& p_swapchain,
+    GraphicPipeline& p_graphic_pipeline
 )
     : _instance(p_instance), _device(p_device), _renderer(p_renderer),
       _swapchain(p_swapchain), _graphic_pipeline(p_graphic_pipeline) {}
@@ -73,8 +73,8 @@ void GraphicsRuntimeLifecycle::cleanupSwapchainDependentResources() {
 }
 
 void GraphicsRuntimeLifecycle::initialize(
-    const VulkanHostConfig &p_host_config,
-    const GraphicsResourceConfig &p_resources,
+    const VulkanHostConfig& p_host_config,
+    const GraphicsResourceConfig& p_resources,
     uint32_t p_frames_in_flight,
     bool p_enable_validation_layers,
     VkExtent2D p_framebuffer_extent

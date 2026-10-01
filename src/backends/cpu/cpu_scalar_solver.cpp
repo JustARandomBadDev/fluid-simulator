@@ -26,7 +26,7 @@ void CpuScalarSolver::init() {
     _pressure_terms.resize(_config.particleCapacity);
 }
 
-void CpuScalarSolver::step(ParticleData &p_particles, float p_dt) {
+void CpuScalarSolver::step(ParticleData& p_particles, float p_dt) {
     if (p_particles.count == 0) return;
 
     p_dt = std::min(p_dt, _config.maximumTimeStep);
@@ -41,7 +41,7 @@ void CpuScalarSolver::step(ParticleData &p_particles, float p_dt) {
     }
 }
 
-void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
+void CpuScalarSolver::computeDensityAndPressure(ParticleData& p_particles) {
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -49,7 +49,7 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
         const float piy = p_particles.position_y[i];
         const float piz = p_particles.position_z[i];
 
-        const glm::ivec3 &cell_pos = _grid.getParticleCellPosition(i);
+        const glm::ivec3& cell_pos = _grid.getParticleCellPosition(i);
 
         float density = 0.0f;
 
@@ -96,7 +96,7 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
     }
 }
 
-void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
+void CpuScalarSolver::computeAccelerations(ParticleData& p_particles) {
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -108,7 +108,7 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
         const float viy = p_particles.velocity_y[i];
         const float viz = p_particles.velocity_z[i];
 
-        const glm::ivec3 &cell_pos = _grid.getParticleCellPosition(i);
+        const glm::ivec3& cell_pos = _grid.getParticleCellPosition(i);
 
         const float pressure_i = _pressure_terms[i];
 
@@ -164,9 +164,9 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
                         pressure_y += ry * pressure_scalar;
                         pressure_z += rz * pressure_scalar;
 
-                        const float viscosity_scalar = _constants.viscosity_factor *
-                                                       _inverse_densities[j] *
-                                                       distance_to_edge;
+                        const float viscosity_scalar =
+                            _constants.viscosity_factor *
+                            _inverse_densities[j] * distance_to_edge;
 
                         viscosity_x += (p_particles.velocity_x[j] - vix) *
                                        viscosity_scalar;
@@ -185,19 +185,19 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
     }
 }
 
-void CpuScalarSolver::integrate(ParticleData &p_particles, float p_dt) {
+void CpuScalarSolver::integrate(ParticleData& p_particles, float p_dt) {
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
-        float &position_x = p_particles.position_x[i];
-        float &position_y = p_particles.position_y[i];
-        float &position_z = p_particles.position_z[i];
+        float& position_x = p_particles.position_x[i];
+        float& position_y = p_particles.position_y[i];
+        float& position_z = p_particles.position_z[i];
 
-        float &velocity_x = p_particles.velocity_x[i];
-        float &velocity_y = p_particles.velocity_y[i];
-        float &velocity_z = p_particles.velocity_z[i];
+        float& velocity_x = p_particles.velocity_x[i];
+        float& velocity_y = p_particles.velocity_y[i];
+        float& velocity_z = p_particles.velocity_z[i];
 
-        const auto &acceleration = _accelerations[i];
+        const auto& acceleration = _accelerations[i];
 
         velocity_x += acceleration.x * p_dt;
         velocity_y += acceleration.y * p_dt;
@@ -219,12 +219,12 @@ void CpuScalarSolver::integrate(ParticleData &p_particles, float p_dt) {
 }
 
 void CpuScalarSolver::applyBoxCollision(
-    float &p_position_x,
-    float &p_position_y,
-    float &p_position_z,
-    float &p_velocity_x,
-    float &p_velocity_y,
-    float &p_velocity_z
+    float& p_position_x,
+    float& p_position_y,
+    float& p_position_z,
+    float& p_velocity_x,
+    float& p_velocity_y,
+    float& p_velocity_z
 ) const {
     if (_box_dim.y > 0.0f) {
         if (p_position_y < _box_position.y) {

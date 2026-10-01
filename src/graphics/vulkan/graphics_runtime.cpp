@@ -10,8 +10,8 @@ namespace fluid::graphics {
 namespace {
 
 void validateRequiredResourcePath(
-    const std::filesystem::path &path,
-    const char *resource_name
+    const std::filesystem::path& path,
+    const char* resource_name
 ) {
     if (path.empty()) {
         throw std::runtime_error(
@@ -34,7 +34,7 @@ void validateRequiredResourcePath(
     }
 }
 
-void validateGraphicsResources(const GraphicsResourceConfig &resources) {
+void validateGraphicsResources(const GraphicsResourceConfig& resources) {
     validateRequiredResourcePath(
         resources.particleVertexShader,
         "graphicsResources.particleVertexShader"
@@ -45,7 +45,7 @@ void validateGraphicsResources(const GraphicsResourceConfig &resources) {
     );
 }
 
-void validateInitConfig(const GraphicsRuntimeConfig &config) {
+void validateInitConfig(const GraphicsRuntimeConfig& config) {
     if (!config.vulkanHost.createSurface) {
         throw std::runtime_error(
             "GraphicsRuntime::init() -> vulkanHost.createSurface callback must "
@@ -141,7 +141,7 @@ bool GraphicsRuntime::ensureSwapchainReady() {
     return true;
 }
 
-void GraphicsRuntime::init(const GraphicsRuntimeConfig &config) {
+void GraphicsRuntime::init(const GraphicsRuntimeConfig& config) {
     validateInitConfig(config);
     validateGraphicsResources(config.graphicsResources);
 
@@ -190,7 +190,7 @@ void GraphicsRuntime::updateParticles(
     _particle_buffer.update(renderer.getCurrentFrame(), p_particles);
 }
 
-void GraphicsRuntime::render(const core::Camera &camera) {
+void GraphicsRuntime::render(const core::Camera& camera) {
     if (!_initialized) {
         throw std::runtime_error(
             "GraphicsRuntime::render() -> runtime is not initialized"

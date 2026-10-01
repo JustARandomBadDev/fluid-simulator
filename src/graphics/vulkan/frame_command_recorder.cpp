@@ -11,18 +11,18 @@
 namespace fluid::graphics {
 
 CommandRecorder::CommandRecorder(
-    Renderer &p_renderer,
-    Swapchain &p_swapchain,
-    GraphicPipeline &p_graphic_pipeline
+    Renderer& p_renderer,
+    Swapchain& p_swapchain,
+    GraphicPipeline& p_graphic_pipeline
 )
     : _renderer(p_renderer), _swapchain(p_swapchain),
       _graphic_pipeline(p_graphic_pipeline) {}
 
 void CommandRecorder::record(
     uint32_t p_image_index,
-    const glm::vec4 &p_clear_color,
-    const glm::mat4 &p_view_projection,
-    const VulkanBuffer &p_particle_vertex_buffer,
+    const glm::vec4& p_clear_color,
+    const glm::mat4& p_view_projection,
+    const VulkanBuffer& p_particle_vertex_buffer,
     uint32_t p_vertex_count
 ) {
     const VkCommandBuffer command = _renderer.getCommandBuffer(p_image_index);

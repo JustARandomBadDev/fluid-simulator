@@ -16,12 +16,12 @@ struct BoxDim {
     const float z;
 };
 
-}
+} // namespace
 
 namespace fluid::simulation {
 
 class CudaSolver : public Solver {
-public:
+  public:
     explicit CudaSolver(const SimulationConfig& config) : Solver(config) {}
     CudaSolver(const CudaSolver&) = delete;
 
@@ -30,7 +30,7 @@ public:
     void init() override;
     void step(ParticleData& p_particles, float p_dt) override;
 
-private:
+  private:
     float* _position_x;
     float* _position_y;
     float* _position_z;
@@ -55,6 +55,6 @@ private:
     SphConstants* _cuda_constants;
 };
 
-}
+} // namespace fluid::simulation
 
 #endif

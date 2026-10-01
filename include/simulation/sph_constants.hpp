@@ -19,7 +19,7 @@ struct SphConstants {
     float viscosity_factor;
 };
 
-SphConstants makeSphConstants(const SphParameters &p_params);
+SphConstants makeSphConstants(const SphParameters& p_params);
 
 } // namespace fluid::simulation
 

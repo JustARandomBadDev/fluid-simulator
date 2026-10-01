@@ -12,15 +12,15 @@
 namespace fluid::graphics {
 
 FrameRenderer::FrameRenderer(
-    Device &p_device,
-    Renderer &p_renderer,
-    Swapchain &p_swapchain,
-    CommandRecorder &p_command_recorder
+    Device& p_device,
+    Renderer& p_renderer,
+    Swapchain& p_swapchain,
+    CommandRecorder& p_command_recorder
 )
     : _device(p_device), _renderer(p_renderer), _swapchain(p_swapchain),
       _command_recorder(p_command_recorder) {}
 
-VkResult FrameRenderer::acquireFrameImage(uint32_t &p_image_index) {
+VkResult FrameRenderer::acquireFrameImage(uint32_t& p_image_index) {
     return vkAcquireNextImageKHR(
         _device.getDevice(),
         _swapchain.getSwapChain(),
@@ -49,7 +49,7 @@ void FrameRenderer::submitFrame(uint32_t p_image_index) {
         );
     }
 
-    const VkCommandBuffer &commandBuffer =
+    const VkCommandBuffer& commandBuffer =
         _renderer.getCommandBuffer(p_image_index);
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -91,9 +91,9 @@ VkResult FrameRenderer::presentFrame(uint32_t p_image_index) {
 }
 
 FrameRenderStatus FrameRenderer::render(
-    const core::Camera &camera,
-    const glm::vec4 &p_clear_color,
-    const VulkanBuffer &p_particle_vertex_buffer,
+    const core::Camera& camera,
+    const glm::vec4& p_clear_color,
+    const VulkanBuffer& p_particle_vertex_buffer,
     uint32_t p_vertex_count
 ) {
     waitForCurrentFrame();
@@ -110,7 +110,7 @@ FrameRenderStatus FrameRenderer::render(
         );
     }
 
-    const VkFence &imageFence = _renderer.getImageInFlightFence(imageIndex);
+    const VkFence& imageFence = _renderer.getImageInFlightFence(imageIndex);
     if (imageFence != VK_NULL_HANDLE && vkWaitForFences(
                                             _device.getDevice(),
                                             1,

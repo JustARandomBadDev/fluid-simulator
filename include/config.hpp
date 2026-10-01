@@ -14,7 +14,7 @@ enum class SimulationBackend { CpuScalar, Cuda };
 struct WindowConfig {
     int width = 1280;
     int height = 720;
-    const char *title = "Fluid Simulator - Vulkan particles";
+    const char* title = "Fluid Simulator - Vulkan particles";
     bool resizable = true;
 };
 

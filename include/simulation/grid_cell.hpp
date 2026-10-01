@@ -13,7 +13,7 @@ class GridCell {
 
     void add(std::size_t p_index);
 
-    const std::vector<std::size_t> &get() const {
+    const std::vector<std::size_t>& get() const {
         return _particles_index;
     }
 

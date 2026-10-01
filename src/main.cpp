@@ -39,7 +39,7 @@ fluid::SimulationBackend parseBackend(std::string_view value) {
     );
 }
 
-CommandLineOptions parseCommandLine(int argc, char **argv) {
+CommandLineOptions parseCommandLine(int argc, char** argv) {
     CommandLineOptions options;
 
     for (int index = 1; index < argc; index++) {
@@ -75,7 +75,7 @@ CommandLineOptions parseCommandLine(int argc, char **argv) {
 
 } // namespace
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     try {
         const CommandLineOptions options = parseCommandLine(argc, argv);
         if (options.help) {
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 
         fluid::Application application(std::move(config));
         application.run(options.smokeTest);
-    } catch (const std::exception &exception) {
+    } catch (const std::exception& exception) {
         std::cerr << "fluid-simulator: " << exception.what() << '\n';
         return 1;
     }

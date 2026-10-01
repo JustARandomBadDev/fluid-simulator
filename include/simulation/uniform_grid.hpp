@@ -42,7 +42,7 @@ class UniformGrid {
         return _particle_cells[p_index];
     }
 
-    const glm::ivec3 &getParticleCellPosition(std::size_t p_index) const {
+    const glm::ivec3& getParticleCellPosition(std::size_t p_index) const {
         return _particle_cell_positions[p_index];
     }
 
@@ -50,7 +50,7 @@ class UniformGrid {
 
     bool contains(glm::ivec3 p_position) const;
 
-    bool rebuild(const ParticleData &p_data);
+    bool rebuild(const ParticleData& p_data);
 
   private:
     glm::vec3 _position;

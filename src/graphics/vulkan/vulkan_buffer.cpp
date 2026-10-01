@@ -10,7 +10,7 @@ VulkanBuffer::~VulkanBuffer() {
     cleanup();
 }
 
-VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept
+VulkanBuffer::VulkanBuffer(VulkanBuffer&& other) noexcept
     : buffer(other.buffer), bufferMemory(other.bufferMemory), size(other.size),
       usageFlags(other.usageFlags), memoryProperties(other.memoryProperties),
       _device(other._device), _mapped(other._mapped) {
@@ -23,7 +23,7 @@ VulkanBuffer::VulkanBuffer(VulkanBuffer &&other) noexcept
     other._mapped = nullptr;
 }
 
-VulkanBuffer &VulkanBuffer::operator=(VulkanBuffer &&other) noexcept {
+VulkanBuffer& VulkanBuffer::operator=(VulkanBuffer&& other) noexcept {
     if (this == &other) return *this;
 
     cleanup();
@@ -51,7 +51,7 @@ void VulkanBuffer::createBuffer(
     VkDeviceSize psize,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags properties,
-    Device &p_device
+    Device& p_device
 ) {
     if (psize == 0) {
         throw std::runtime_error(
@@ -114,7 +114,7 @@ void VulkanBuffer::createBuffer(
     memoryProperties = properties;
 }
 
-void *VulkanBuffer::map(VkDeviceSize offset, VkDeviceSize mappedSize) {
+void* VulkanBuffer::map(VkDeviceSize offset, VkDeviceSize mappedSize) {
     if ((memoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0) {
         throw std::runtime_error(
             "VulkanBuffer::map() -> buffer memory is not host-visible"

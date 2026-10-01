@@ -53,7 +53,7 @@ bool UniformGrid::contains(glm::ivec3 p_position) const {
            p_position.z < static_cast<int>(_dimensions.z);
 }
 
-bool UniformGrid::rebuild(const ParticleData &p_data) {
+bool UniformGrid::rebuild(const ParticleData& p_data) {
     bool changed = !_initialized || p_data.count != _particle_count;
 
     for (uint32_t i = 0; i < p_data.count; i++) {

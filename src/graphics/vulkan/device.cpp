@@ -9,10 +9,10 @@
 
 namespace fluid::graphics {
 
-const std::vector<const char *> deviceExtensions = {
+const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-void Device::pickPhysicalDevice(Instance &p_instance, Swapchain &p_swapchain) {
+void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, nullptr);
 
@@ -30,7 +30,7 @@ void Device::pickPhysicalDevice(Instance &p_instance, Swapchain &p_swapchain) {
         devices.data()
     );
 
-    for (const auto &pdevice : devices) {
+    for (const auto& pdevice : devices) {
         if (isDeviceSuitable(pdevice, p_instance, p_swapchain)) {
             physicalDevice = pdevice;
             break;
@@ -45,7 +45,7 @@ void Device::pickPhysicalDevice(Instance &p_instance, Swapchain &p_swapchain) {
     }
 }
 
-void Device::createLogicalDevice(Instance &p_instance) {
+void Device::createLogicalDevice(Instance& p_instance) {
     if (physicalDevice == VK_NULL_HANDLE) {
         throw std::runtime_error(
             "Device::createLogicalDevice() -> physical device is not "
@@ -93,7 +93,7 @@ void Device::createLogicalDevice(Instance &p_instance) {
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
-void Device::recreateDepthResources(Swapchain &p_swapchain) {
+void Device::recreateDepthResources(Swapchain& p_swapchain) {
     VkFormat depthFormat = findDepthFormat();
 
     createImage(
@@ -145,8 +145,8 @@ void Device::cleanup() {
 
 bool Device::isDeviceSuitable(
     VkPhysicalDevice pdevice,
-    Instance &p_instance,
-    Swapchain &p_swapchain
+    Instance& p_instance,
+    Swapchain& p_swapchain
 ) const {
     QueueFamilyIndices indices = findQueueFamilies(pdevice, p_instance);
 
@@ -169,7 +169,7 @@ bool Device::isDeviceSuitable(
 
 QueueFamilyIndices Device::findQueueFamilies(
     VkPhysicalDevice pdevice,
-    Instance &p_instance
+    Instance& p_instance
 ) const {
     QueueFamilyIndices indices;
 
@@ -188,7 +188,7 @@ QueueFamilyIndices Device::findQueueFamilies(
     );
 
     int i = 0;
-    for (const auto &queueFamily : queueFamilies) {
+    for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
         }
@@ -237,7 +237,7 @@ bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) const {
         deviceExtensions.end()
     );
 
-    for (const auto &extension : availableExtensions) {
+    for (const auto& extension : availableExtensions) {
         requiredExtensions.erase(extension.extensionName);
     }
 
@@ -275,7 +275,7 @@ VkFormat Device::findDepthFormat() const {
 }
 
 VkFormat Device::findSupportedFormat(
-    const std::vector<VkFormat> &candidates,
+    const std::vector<VkFormat>& candidates,
     VkImageTiling tiling,
     VkFormatFeatureFlags features
 ) const {
@@ -306,8 +306,8 @@ void Device::createImage(
     VkImageTiling tiling,
     VkImageUsageFlags usage,
     VkMemoryPropertyFlags properties,
-    VkImage &image,
-    VkDeviceMemory &memory
+    VkImage& image,
+    VkDeviceMemory& memory
 ) const {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

@@ -16,7 +16,7 @@ struct BenchmarkConfig {
     float deltaTime = 0.001f;
 };
 
-int run(const BenchmarkConfig &config = {});
+int run(const BenchmarkConfig& config = {});
 
 } // namespace fluid::benchmark
 

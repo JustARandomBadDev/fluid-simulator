@@ -31,7 +31,7 @@ void Application::run(bool smokeTest) {
 }
 
 void Application::createWindow() {
-    glfwSetErrorCallback([](int, const char *description) {
+    glfwSetErrorCallback([](int, const char* description) {
         (void)description;
     });
 
@@ -64,7 +64,7 @@ void Application::createWindow() {
 
 void Application::initializeGraphics() {
     uint32_t extensionCount = 0;
-    const char **glfwExtensions =
+    const char** glfwExtensions =
         glfwGetRequiredInstanceExtensions(&extensionCount);
     if (glfwExtensions == nullptr || extensionCount == 0) {
         throw std::runtime_error(
@@ -82,7 +82,7 @@ void Application::initializeGraphics() {
 
     hostConfig.createSurface = [this](
                                    VkInstance instance,
-                                   VkSurfaceKHR &surface
+                                   VkSurfaceKHR& surface
                                ) {
         return glfwCreateWindowSurface(instance, _window, nullptr, &surface);
     };
@@ -152,7 +152,7 @@ void Application::mainLoop(bool smokeTest) {
 }
 
 void Application::update(float dt) {
-    const auto &particles = _fluid_simulator.update(dt);
+    const auto& particles = _fluid_simulator.update(dt);
 
     for (std::size_t i = 0; i < particles.count; i++) {
         _particle_vertices[i].position = {particles.position_x[i],

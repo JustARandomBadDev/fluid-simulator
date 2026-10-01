@@ -8,7 +8,7 @@
 
 namespace fluid::graphics {
 
-ParticleBuffer::ParticleBuffer(Device &p_device) : _device(p_device) {}
+ParticleBuffer::ParticleBuffer(Device& p_device) : _device(p_device) {}
 
 void ParticleBuffer::initialize(
     std::size_t p_capacity,
@@ -94,11 +94,11 @@ void ParticleBuffer::cleanup() {
     _capacity = 0;
 }
 
-VulkanBuffer &ParticleBuffer::buffer(uint32_t p_frame_index) {
+VulkanBuffer& ParticleBuffer::buffer(uint32_t p_frame_index) {
     return _buffers.at(p_frame_index);
 }
 
-const VulkanBuffer &ParticleBuffer::buffer(uint32_t p_frame_index) const {
+const VulkanBuffer& ParticleBuffer::buffer(uint32_t p_frame_index) const {
     return _buffers.at(p_frame_index);
 }
 

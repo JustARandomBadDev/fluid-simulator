@@ -17,8 +17,8 @@ namespace fluid {
 class Application {
   public:
     explicit Application(ApplicationConfig config = {});
-    Application(const Application &) = delete;
-    Application &operator=(const Application &) = delete;
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
 
     ~Application();
 
@@ -26,7 +26,7 @@ class Application {
 
   private:
     ApplicationConfig _config;
-    GLFWwindow *_window = nullptr;
+    GLFWwindow* _window = nullptr;
     graphics::GraphicsRuntime _graphics;
     core::Camera _camera;
     bool _glfw_initialized = false;

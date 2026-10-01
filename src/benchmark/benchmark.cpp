@@ -13,7 +13,7 @@
 namespace fluid::benchmark {
 namespace {
 
-const char *backendName(SimulationBackend backend) {
+const char* backendName(SimulationBackend backend) {
     switch (backend) {
     case SimulationBackend::CpuScalar:
         return "CPU";
@@ -42,7 +42,7 @@ void validateBackendAvailability(SimulationBackend backend) {
 
 } // namespace
 
-int run(const BenchmarkConfig &config) {
+int run(const BenchmarkConfig& config) {
     if (config.measuredSteps == 0) {
         throw std::runtime_error(
             "benchmark measured step count must be greater than 0"

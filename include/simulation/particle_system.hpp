@@ -11,15 +11,15 @@ namespace fluid::simulation {
 
 class ParticleSystem {
   public:
-    void init(const SimulationConfig &config);
+    void init(const SimulationConfig& config);
 
     bool addParticle(const glm::vec3 p_position);
     bool removeParticle(std::size_t p_index);
 
     void clear() noexcept;
 
-    const ParticleData &particles() const noexcept;
-    ParticleData &particles() noexcept;
+    const ParticleData& particles() const noexcept;
+    ParticleData& particles() noexcept;
     std::size_t count() const noexcept;
 
   private:

@@ -22,60 +22,60 @@ class Swapchain;
 
 class Device {
   public:
-    void pickPhysicalDevice(Instance &p_instance, Swapchain &p_swapchain);
-    void createLogicalDevice(Instance &p_instance);
-    void recreateDepthResources(Swapchain &p_swapchain);
+    void pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain);
+    void createLogicalDevice(Instance& p_instance);
+    void recreateDepthResources(Swapchain& p_swapchain);
     void cleanupDepthResources();
     void cleanup();
 
     QueueFamilyIndices
-    findQueueFamilies(VkPhysicalDevice pdevice, Instance &p_instance) const;
+    findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const;
     uint32_t
     findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
     VkFormat findDepthFormat() const;
 
-    VkPhysicalDevice &getPhysicalDevice() {
+    VkPhysicalDevice& getPhysicalDevice() {
         return physicalDevice;
     }
-    const VkPhysicalDevice &getPhysicalDevice() const {
+    const VkPhysicalDevice& getPhysicalDevice() const {
         return physicalDevice;
     }
-    VkDevice &getDevice() {
+    VkDevice& getDevice() {
         return device;
     }
-    const VkDevice &getDevice() const {
+    const VkDevice& getDevice() const {
         return device;
     }
 
-    VkQueue &getGraphicsQueue() {
+    VkQueue& getGraphicsQueue() {
         return graphicsQueue;
     }
-    const VkQueue &getGraphicsQueue() const {
+    const VkQueue& getGraphicsQueue() const {
         return graphicsQueue;
     }
-    VkQueue &getPresentQueue() {
+    VkQueue& getPresentQueue() {
         return presentQueue;
     }
-    const VkQueue &getPresentQueue() const {
+    const VkQueue& getPresentQueue() const {
         return presentQueue;
     }
 
-    VkImage &getDepthImage() {
+    VkImage& getDepthImage() {
         return depthImage;
     }
-    const VkImage &getDepthImage() const {
+    const VkImage& getDepthImage() const {
         return depthImage;
     }
-    VkDeviceMemory &getDepthImageMemory() {
+    VkDeviceMemory& getDepthImageMemory() {
         return depthImageMemory;
     }
-    const VkDeviceMemory &getDepthImageMemory() const {
+    const VkDeviceMemory& getDepthImageMemory() const {
         return depthImageMemory;
     }
-    VkImageView &getDepthImageView() {
+    VkImageView& getDepthImageView() {
         return depthImageView;
     }
-    const VkImageView &getDepthImageView() const {
+    const VkImageView& getDepthImageView() const {
         return depthImageView;
     }
 
@@ -91,12 +91,12 @@ class Device {
 
     bool isDeviceSuitable(
         VkPhysicalDevice pdevice,
-        Instance &p_instance,
-        Swapchain &p_swapchain
+        Instance& p_instance,
+        Swapchain& p_swapchain
     ) const;
     bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice) const;
     VkFormat findSupportedFormat(
-        const std::vector<VkFormat> &candidates,
+        const std::vector<VkFormat>& candidates,
         VkImageTiling tiling,
         VkFormatFeatureFlags features
     ) const;
@@ -107,8 +107,8 @@ class Device {
         VkImageTiling tiling,
         VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties,
-        VkImage &image,
-        VkDeviceMemory &memory
+        VkImage& image,
+        VkDeviceMemory& memory
     ) const;
 };
 

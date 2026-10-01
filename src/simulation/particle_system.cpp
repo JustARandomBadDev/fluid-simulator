@@ -5,7 +5,7 @@
 
 namespace fluid::simulation {
 
-void ParticleSystem::init(const SimulationConfig &config) {
+void ParticleSystem::init(const SimulationConfig& config) {
     clear();
     _capacity = config.particleCapacity;
     _initial_velocity = config.spawn.initialVelocity;
@@ -36,7 +36,7 @@ void ParticleSystem::init(const SimulationConfig &config) {
 }
 
 bool ParticleSystem::addParticle(const glm::vec3 p_position) {
-    std::size_t &count = _particles.count;
+    std::size_t& count = _particles.count;
 
     if (count >= _capacity) return false;
 
@@ -54,7 +54,7 @@ bool ParticleSystem::addParticle(const glm::vec3 p_position) {
 }
 
 bool ParticleSystem::removeParticle(std::size_t p_index) {
-    std::size_t &count = _particles.count;
+    std::size_t& count = _particles.count;
 
     if (p_index >= count) return false;
 
@@ -77,11 +77,11 @@ void ParticleSystem::clear() noexcept {
     _particles.count = 0;
 }
 
-const ParticleData &ParticleSystem::particles() const noexcept {
+const ParticleData& ParticleSystem::particles() const noexcept {
     return _particles;
 }
 
-ParticleData &ParticleSystem::particles() noexcept {
+ParticleData& ParticleSystem::particles() noexcept {
     return _particles;
 }
 

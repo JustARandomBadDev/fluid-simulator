@@ -11,14 +11,14 @@ namespace fluid::simulation {
 
 class Solver {
   public:
-    explicit Solver(const SimulationConfig &config)
+    explicit Solver(const SimulationConfig& config)
         : _config(config), _params(config.sph),
           _constants(makeSphConstants(_params)) {}
 
     virtual ~Solver() = default;
 
     virtual void init() = 0;
-    virtual void step(ParticleData &p_particles, float p_dt) = 0;
+    virtual void step(ParticleData& p_particles, float p_dt) = 0;
 
   protected:
     SimulationConfig _config;
