@@ -15,8 +15,12 @@ namespace fluid::simulation {
 
 class UniformGrid {
   public:
-    void
-    init(glm::vec3 p_box_dim, float p_cell_size, std::size_t p_max_particles);
+    void init(
+        glm::vec3 p_position,
+        glm::vec3 p_box_dim,
+        float p_cell_size,
+        std::size_t p_max_particles
+    );
 
     uint32_t get(glm::uvec3 p_position) const;
 
@@ -49,6 +53,7 @@ class UniformGrid {
     bool rebuild(const ParticleData &p_data);
 
   private:
+    glm::vec3 _position;
     glm::uvec3 _dimensions;
 
     float _cell_size{};

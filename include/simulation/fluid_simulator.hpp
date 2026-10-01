@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "config.hpp"
 #include "simulation/particle_system.hpp"
 #include "simulation/solver.hpp"
 
@@ -10,10 +11,11 @@ namespace fluid::simulation {
 
 class FluidSimulator {
   public:
+    explicit FluidSimulator(const SimulationConfig &config);
     FluidSimulator(std::unique_ptr<Solver> p_solver)
         : _solver(std::move(p_solver)) {};
 
-    void init(glm::vec3 p_box_dim);
+    void init(const SimulationConfig &config);
     const ParticleData &update(float dt);
 
   private:

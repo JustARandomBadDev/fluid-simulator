@@ -8,6 +8,9 @@
 namespace {
 
 struct BoxDim {
+    const float position_x;
+    const float position_y;
+    const float position_z;
     const float x;
     const float y;
     const float z;
@@ -19,12 +22,12 @@ namespace fluid::simulation {
 
 class CudaSolver : public Solver {
 public:
-    CudaSolver() = default;
+    explicit CudaSolver(const SimulationConfig& config) : Solver(config) {}
     CudaSolver(const CudaSolver&) = delete;
 
     ~CudaSolver();
 
-    void init(glm::vec3 p_box_dim) override;
+    void init() override;
     void step(ParticleData& p_particles, float p_dt) override;
 
 private:

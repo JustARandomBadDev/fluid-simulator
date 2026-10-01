@@ -12,9 +12,9 @@ namespace fluid::simulation {
 
 class CpuScalarSolver : public Solver {
   public:
-    CpuScalarSolver() = default;
+    explicit CpuScalarSolver(const SimulationConfig &config) : Solver(config) {}
 
-    void init(glm::vec3 p_box_dim) override;
+    void init() override;
     void step(ParticleData &p_particles, float p_dt) override;
 
   private:
@@ -32,6 +32,7 @@ class CpuScalarSolver : public Solver {
     ) const;
 
   private:
+    glm::vec3 _box_position;
     glm::vec3 _box_dim;
 
     UniformGrid _grid;

@@ -1,6 +1,7 @@
 #ifndef FLUID_SIMULATOR_SOLVER_HPP
 #define FLUID_SIMULATOR_SOLVER_HPP
 
+#include "config.hpp"
 #include "simulation/particles_data.hpp"
 #include "simulation/sph_constants.hpp"
 #include "simulation/sph_parameters.hpp"
@@ -10,14 +11,17 @@ namespace fluid::simulation {
 
 class Solver {
   public:
-    Solver() : _params(), _constants(makeSphConstants(_params)) {}
+    explicit Solver(const SimulationConfig &config)
+        : _config(config), _params(config.sph),
+          _constants(makeSphConstants(_params)) {}
 
     virtual ~Solver() = default;
 
-    virtual void init(glm::vec3 p_box_dim) = 0;
+    virtual void init() = 0;
     virtual void step(ParticleData &p_particles, float p_dt) = 0;
 
   protected:
+    SimulationConfig _config;
     SphParameters _params;
     SphConstants _constants;
 };

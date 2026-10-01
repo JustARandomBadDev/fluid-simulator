@@ -18,8 +18,7 @@ https://github.com/user-attachments/assets/5d53c393-3607-4f4b-9a94-7fd8b020c329
 
 - Smoothed Particle Hydrodynamics (SPH) with density/pressure, force, and
   integration passes.
-- Structure-of-Arrays (SoA) storage for particle positions, velocities,
-  densities, and pressures.
+- Structure-of-Arrays (SoA) storage for particle positions and velocities.
 - A scalar CPU backend with OpenMP parallelization and a flat Uniform Grid that
   restricts neighbor queries to the 27 cells around a particle.
 - A naive CUDA backend with separate density/pressure, acceleration, and
@@ -30,6 +29,8 @@ https://github.com/user-attachments/assets/5d53c393-3607-4f4b-9a94-7fd8b020c329
 - Vulkan rendering with a depth buffer, two frames in flight, synchronized
   per-frame particle buffers, and swapchain recreation on resize.
 - GLSL vertex and fragment shaders compiled to SPIR-V by CMake.
+- Runtime selection between the CPU and CUDA simulation backends.
+- A headless benchmark mode that measures the real simulation update path.
 - A smoke-test mode that exercises rendering, window resize, swapchain
   recreation, and clean shutdown.
 
@@ -88,11 +89,35 @@ continues without validation.
 
 ```sh
 ./build/fluid-simulator
+./build/fluid-simulator --backend cpu
+./build/fluid-simulator --backend cuda
 ```
 
-The window can be resized or closed through the window manager. There are no
-keyboard, mouse, or runtime simulation controls yet; the camera and simulation
-parameters are currently fixed in code.
+CUDA is the default backend. The window can be resized or closed through the
+window manager. There are no keyboard, mouse, or runtime parameter controls
+yet; initialization defaults are defined by the C++ configuration structs.
+
+Use `-h` or `--help` to list the supported command-line options:
+
+```sh
+./build/fluid-simulator --help
+```
+
+### Headless benchmark
+
+```sh
+./build/fluid-simulator --benchmark
+./build/fluid-simulator --benchmark --backend cpu
+./build/fluid-simulator --benchmark --backend cuda
+```
+
+Benchmark mode bypasses the application, GLFW, and Vulkan. It initializes the
+same particle system and selected simulation backend as GUI mode, runs 100
+warmup steps followed by 1,000 measured steps, and measures the complete
+simulation update path. CUDA results therefore include the current host/device
+copies and synchronization. The output reports total time, average time per
+step, steps per second, and particles processed per second. CUDA remains the
+default backend when `--backend` is omitted.
 
 For an automated graphical smoke test:
 
@@ -108,8 +133,10 @@ surface; it is not a headless unit test.
 
 ```mermaid
 flowchart TB
-    A[Application]
+    CLI[Command line] --> A[Application]
+    CLI --> N[Headless benchmark]
     A --> B[FluidSimulator]
+    N --> B
     A --> H[ParticleVertex staging]
     A --> I[GraphicsRuntime]
 
@@ -134,9 +161,10 @@ storage, and the `GraphicsRuntime`.
 particle system owns the simulation data in a Structure of Arrays
 (`ParticleData`) layout, while simulation steps are delegated through the
 abstract `Solver` interface. Both `CpuScalarSolver` and `CudaSolver` implement
-this interface. The application currently selects `CudaSolver` directly; there
-is no runtime backend selector. The CPU implementation owns a `UniformGrid`,
-while the initial CUDA implementation performs an all-pairs neighbor search.
+this interface. `SimulationConfig` selects the backend for both GUI and
+benchmark modes; CUDA is the default and `--backend cpu` selects the CPU
+implementation. The CPU implementation owns a `UniformGrid`, while the initial
+CUDA implementation performs an all-pairs neighbor search.
 
 After each CUDA simulation update, particle data is copied back to the host.
 Active positions are then converted into `ParticleVertex` data by the
@@ -152,11 +180,13 @@ layout, Uniform Grid, simulation parameters, and CPU/CUDA execution models.
 
 ```text
 include/app/                 Application interface
+include/benchmark/           Headless benchmark interface
 include/backends/cpu/        Scalar CPU solver interface
 include/backends/cuda/       Naive CUDA solver interface
 include/core/                Camera and frame timer
 include/graphics/vulkan/     Vulkan renderer interfaces
 include/simulation/          Backend-independent simulation types
+include/config.hpp           Application and simulation configuration defaults
 src/                         Implementations matching the include tree
 shaders/                     GLSL particle shaders
 docs/                        Architecture and simulation documentation
@@ -176,27 +206,27 @@ clang-format -i path/to/file.cpp
 ```
 
 GNU and Clang builds enable `-Wall`, `-Wextra`, `-Wpedantic`, `-Wshadow`, and
-`-Wconversion`. The repository currently has no checked-in Clang-Tidy
-configuration, test target, or benchmark suite.
+`-Wconversion`. The repository currently has no test target. Its benchmark is
+a runtime mode of the main executable rather than a separate target or suite.
 
 ## Current limitations
 
-- The CPU and CUDA backends are implemented, but the application selects the
-  CUDA backend directly and has no runtime backend selection.
+- The backend is selected at startup; there is no live backend switching.
 - The CUDA density and acceleration kernels use naive all-pairs neighbor
   searches with O(n²) work.
 - CUDA uses synchronous `cudaMemcpy` transfers from host to device and back on
   every simulation step.
 - Vulkan/CUDA external-memory interoperability is not implemented.
-- Particle count, initial distribution, container size, camera, and SPH
-  parameters are hard-coded.
+- Main initialization values are centralized in C++ configuration structs, but
+  there is no external configuration file or CLI tuning beyond backend
+  selection.
 - The simulation performs one step per rendered frame and caps that step at
   1 ms; it has no fixed-step accumulator or substepping controller.
 - The renderer displays fixed-size, single-color point sprites rather than a
   reconstructed fluid surface.
 - Particle positions are copied back from CUDA, repacked on the CPU, and then
   copied into a host-visible Vulkan vertex buffer every frame.
-- There are no interactive controls, automated numerical tests, or recorded
+- There are no interactive controls, automated numerical tests, or published
   benchmark results.
 
 ## Roadmap

@@ -5,13 +5,15 @@
 The project implements two SPH backends behind the same `Solver` interface. The
 scalar CPU solver uses a flat Uniform Grid and OpenMP work sharing. The initial
 CUDA solver mirrors the same simulation stages with a deliberately naive GPU
-implementation. The application currently selects the CUDA backend directly.
+implementation. GUI and benchmark modes select either implementation through
+the shared `SimulationConfig`; CUDA is the default backend.
 
 ## Initial state and capacity
 
 `ParticleSystem` reserves all arrays for 100,000 particles and initializes
 20,000 active particles in a small region near the bottom of a 2 × 20 × 2
-axis-aligned box. Initial velocities, densities, and pressures are zero.
+axis-aligned box. Initial velocities are zero. Capacity, spawn settings, box
+bounds, and velocity are defaults in `SimulationConfig`.
 
 The active count is tracked separately from capacity. Adding a particle writes
 into the next preallocated slot. Removing a particle replaces it with the last
@@ -22,9 +24,7 @@ active particle, so removal does not preserve ordering.
 `ParticleData` holds one `std::vector<float>` for each scalar component:
 
 - position: `x`, `y`, and `z`;
-- velocity: `x`, `y`, and `z`;
-- density;
-- pressure.
+- velocity: `x`, `y`, and `z`.
 
 This SoA layout lets a simulation pass read only the components it needs and
 keeps consecutive values for one field contiguous in memory. Renderer input is
@@ -36,8 +36,9 @@ capacity and reuses them across simulation steps.
 
 ## SPH parameters
 
-The parameters are compile-time defaults in `SphParameters`; the application
-does not currently expose a configuration file or runtime controls.
+`SimulationConfig` contains `SphParameters`, gravity, and the maximum time step.
+Their default values are listed below; the application does not currently
+expose a configuration file or runtime controls for them.
 
 | Parameter          |       Current value |
 | ------------------ | ------------------: |
@@ -60,7 +61,8 @@ parallel region containing three `omp for schedule(static)` passes. The
 implicit barrier at the end of each pass keeps their dependencies ordered.
 
 `CudaSolver` launches a separate kernel for each stage. Each kernel assigns one
-CUDA thread to an active particle and uses blocks of 256 threads.
+CUDA thread to an active particle. `CudaConfig` supplies the launch block size,
+which defaults to 256 threads.
 
 ### 1. Density and pressure
 
@@ -129,8 +131,7 @@ Each simulation step currently performs:
 3. the acceleration kernel;
 4. the integration and box-collision kernel;
 5. an explicit device synchronization;
-6. eight device-to-host copies for positions, velocities, densities, and
-   pressures.
+6. six device-to-host copies for positions and velocities.
 
 The density and acceleration kernels compare each particle with every other
 active particle. Their neighbor search is therefore O(n²). This implementation
@@ -148,8 +149,12 @@ particle per thread, but its all-pairs search and synchronous transfers remain
 major limitations. Position repacking and upload to the mapped Vulkan buffer
 also remain on the CPU.
 
-The project does not currently include a benchmark target or published
-performance measurements, so no CPU/CUDA throughput or frame-rate guarantees
-are claimed. Planned CUDA work includes a GPU spatial grid, accelerated
-neighbor lookup, improved memory access and shared-memory use, transfer
-reduction, profiling, kernel optimization, and Vulkan/CUDA shared buffers.
+The executable includes a headless benchmark mode that uses the real
+`FluidSimulator` update path. By default it runs 100 warmup steps followed by
+1,000 measured steps at a 1 ms delta and reports total time, average step time,
+steps per second, and particles per second. CUDA measurements include the
+current transfers and synchronization. No performance results are published,
+so no CPU/CUDA throughput or frame-rate guarantees are claimed. Planned CUDA
+work includes a GPU spatial grid, accelerated neighbor lookup, improved memory
+access and shared-memory use, transfer reduction, profiling, kernel
+optimization, and Vulkan/CUDA shared buffers.

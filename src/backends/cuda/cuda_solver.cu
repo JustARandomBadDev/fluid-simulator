@@ -21,31 +21,31 @@ __device__ void applyBoxCollision(
     const BoxDim* p_box_dim
 ) {
     if (p_box_dim->y > 0.0f) {
-        if (*p_position_y < 0.0f) {
-            *p_position_y = 0.0f;
+        if (*p_position_y < p_box_dim->position_y) {
+            *p_position_y = p_box_dim->position_y;
             *p_velocity_y = 0.0f;
-        } else if (*p_position_y > p_box_dim->y) {
-            *p_position_y = p_box_dim->y;
+        } else if (*p_position_y > p_box_dim->position_y + p_box_dim->y) {
+            *p_position_y = p_box_dim->position_y + p_box_dim->y;
             *p_velocity_y = 0.0f;
         }
     }
 
     if (p_box_dim->x > 0.0f) {
-        if (*p_position_x < 0.0f) {
-            *p_position_x = 0.0f;
+        if (*p_position_x < p_box_dim->position_x) {
+            *p_position_x = p_box_dim->position_x;
             *p_velocity_x = 0.0f;
-        } else if (*p_position_x > p_box_dim->x) {
-            *p_position_x = p_box_dim->x;
+        } else if (*p_position_x > p_box_dim->position_x + p_box_dim->x) {
+            *p_position_x = p_box_dim->position_x + p_box_dim->x;
             *p_velocity_x = 0.0f;
         }
     }
 
     if (p_box_dim->z > 0.0f) {
-        if (*p_position_z < 0.0f) {
-            *p_position_z = 0.0f;
+        if (*p_position_z < p_box_dim->position_z) {
+            *p_position_z = p_box_dim->position_z;
             *p_velocity_z = 0.0f;
-        } else if (*p_position_z > p_box_dim->z) {
-            *p_position_z = p_box_dim->z;
+        } else if (*p_position_z > p_box_dim->position_z + p_box_dim->z) {
+            *p_position_z = p_box_dim->position_z + p_box_dim->z;
             *p_velocity_z = 0.0f;
         }
     }
@@ -142,17 +142,16 @@ __global__ void accelerationKernel(
     const std::size_t p_count,
 
     const SphParameters* p_params,
-    const SphConstants* p_constants
+    const SphConstants* p_constants,
+    const float p_gravity_x,
+    const float p_gravity_y,
+    const float p_gravity_z
 ) {
     const std::size_t index =
         blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index >= p_count)
         return;
-
-    constexpr float gravity_x = 0.0f;
-    constexpr float gravity_y = -9.81f;
-    constexpr float gravity_z = 0.0f;
 
     const float pix = p_position_x[index];
     const float piy = p_position_y[index];
@@ -230,17 +229,17 @@ __global__ void accelerationKernel(
     p_accelerations_x[index] =
         pressure_x +
         viscosity_x +
-        gravity_x;
+        p_gravity_x;
 
     p_accelerations_y[index] =
         pressure_y +
         viscosity_y +
-        gravity_y;
+        p_gravity_y;
 
     p_accelerations_z[index] =
         pressure_z +
         viscosity_z +
-        gravity_z;
+        p_gravity_z;
 }
 
 __global__ void integrateKernel(
@@ -301,15 +300,18 @@ __global__ void integrateKernel(
     );
 }
 
-void CudaSolver::init(glm::vec3 p_box_dim) {
+void CudaSolver::init() {
     BoxDim box_dim {
-        p_box_dim.x,
-        p_box_dim.y,
-        p_box_dim.z
+        _config.box.position.x,
+        _config.box.position.y,
+        _config.box.position.z,
+        _config.box.dimensions.x,
+        _config.box.dimensions.y,
+        _config.box.dimensions.z
     };
 
     const std::size_t buffer_size =
-        ParticleSystem::MAX_PARTICLES *
+        _config.particleCapacity *
         sizeof(float);
 
     cudaMalloc(&_position_x, buffer_size);
@@ -374,7 +376,7 @@ void CudaSolver::step(
     if (p_particles.count == 0)
         return;
 
-    p_dt = std::min(p_dt, 0.001f);
+    p_dt = std::min(p_dt, _config.maximumTimeStep);
 
     const std::size_t size =
         p_particles.count * sizeof(float);
@@ -421,7 +423,7 @@ void CudaSolver::step(
         cudaMemcpyHostToDevice
     );
 
-    constexpr std::size_t threads = 256;
+    const std::size_t threads = _config.cuda.blockSize;
 
     const std::size_t blocks =
         (p_particles.count + threads - 1) /
@@ -469,7 +471,10 @@ void CudaSolver::step(
         p_particles.count,
 
         _cuda_params,
-        _cuda_constants
+        _cuda_constants,
+        _config.gravity.x,
+        _config.gravity.y,
+        _config.gravity.z
     );
 
     if (cudaGetLastError() != cudaSuccess) {
@@ -544,20 +549,6 @@ void CudaSolver::step(
     cudaMemcpy(
         p_particles.velocity_z.data(),
         _velocity_z,
-        size,
-        cudaMemcpyDeviceToHost
-    );
-
-    cudaMemcpy(
-        p_particles.densities.data(),
-        _densities,
-        size,
-        cudaMemcpyDeviceToHost
-    );
-
-    cudaMemcpy(
-        p_particles.pressures.data(),
-        _pressures,
         size,
         cudaMemcpyDeviceToHost
     );

@@ -13,6 +13,8 @@ one `fluid-simulator` executable.
 | Area            | Location                                         | Responsibility                                                                                      |
 | --------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
 | Application     | `include/app`, `src/app`                         | Window ownership, initialization, frame loop, and transfer of simulated positions to rendering data |
+| Configuration   | `include/config.hpp`                             | Shared defaults for the application, scene, simulation, and backend                               |
+| Benchmark       | `include/benchmark`, `src/benchmark`             | Headless end-to-end simulation timing                                                              |
 | Core            | `include/core`, `src/core`                       | Camera matrices and frame delta timing                                                              |
 | Simulation      | `include/simulation`, `src/simulation`           | Particle ownership, solver interface, SPH parameters/constants, and spatial grid                    |
 | CPU backend     | `include/backends/cpu`, `src/backends/cpu`       | Scalar SPH implementation and OpenMP work sharing                                                   |
@@ -34,17 +36,19 @@ Initialization follows this order:
    framebuffers, command buffers, and synchronization objects.
 4. One persistently mapped particle vertex buffer is created for each frame in
    flight. The default is two frames.
-5. `ParticleSystem` allocates its arrays at the 100,000-particle capacity and
-   inserts 20,000 particles. The active `CudaSolver` allocates device arrays
-   for the same capacity and uploads the box dimensions, SPH parameters, and
-   derived constants.
+5. `ParticleSystem` allocates its arrays at the configured particle capacity
+   and inserts the configured initial particles. `FluidSimulator` constructs
+   the selected CPU or CUDA solver; the default CUDA solver allocates device
+   arrays for the same capacity and uploads the box bounds, SPH parameters,
+   and derived constants.
 
 Each visible frame then performs:
 
 1. GLFW event polling and framebuffer-size handling.
-2. A CUDA simulation step using the measured frame delta, capped at 1 ms. The
-   active host particle data is copied to CUDA, three kernels run, and the
-   resulting particle data is copied back to the host.
+2. A simulation step using the measured frame delta, capped by the configured
+   maximum step. The CPU backend uses its Uniform Grid and OpenMP passes; the
+   CUDA backend copies active host data to CUDA, runs three kernels, and copies
+   the resulting positions and velocities back to the host.
 3. A copy of active particle positions from `ParticleData` into the
    application's `ParticleVertex` array.
 4. A wait for the current frame fence, followed by a `memcpy` into that frame's
@@ -74,18 +78,33 @@ Solver
 └── CudaSolver        (naive CUDA all-pairs search)
 ```
 
-The application currently constructs `CudaSolver` directly, so switching
-backends requires a code change. The CUDA solver mirrors the CPU solver's three
-SPH stages, using one CUDA thread per active particle and blocks of 256 threads.
-Its device allocations are created once during initialization and reused for
-subsequent steps.
+`FluidSimulator` constructs the backend selected by `SimulationConfig`. GUI
+and benchmark modes use this same selection path; CUDA is the default and the
+CLI can select the CPU scalar backend. The CUDA solver mirrors the CPU solver's
+three SPH stages, using one CUDA thread per active particle and a configurable
+block size that defaults to 256 threads. Its device allocations are created
+once during initialization and reused for subsequent steps.
 
 Each step copies positions and velocities to the device with `cudaMemcpy`,
 runs the density/pressure, acceleration, and integration/collision kernels,
-synchronizes the device, and copies positions, velocities, densities, and
-pressures back to `ParticleData`. The density and acceleration kernels scan
-every active particle and therefore perform O(n²) work. The CPU Uniform Grid is
-not used by the CUDA backend.
+synchronizes the device, and copies positions and velocities back to
+`ParticleData`. The density and acceleration kernels scan every active particle
+and therefore perform O(n²) work. The CPU Uniform Grid is not used by the CUDA
+backend.
+
+## Configuration and benchmark flow
+
+`ApplicationConfig` groups `WindowConfig`, `CameraConfig`, and
+`SimulationConfig`. Simulation settings in turn contain `SimulationBoxConfig`,
+`ParticleSpawnConfig`, `SphParameters`, and `CudaConfig`. These structs provide
+the defaults used by GUI mode without introducing an external configuration
+system.
+
+`BenchmarkConfig` contains the same `SimulationConfig`, so the headless
+benchmark creates the same `ParticleSystem` and `FluidSimulator` backend path.
+It does not construct `Application` or initialize GLFW or Vulkan. Warmup steps
+are excluded from the measured end-to-end simulation time; CUDA measurements
+include the existing copies and device synchronization.
 
 CUDA and Vulkan currently own separate allocations. There are no Vulkan
 external-memory or external-semaphore primitives in the repository, so
@@ -137,8 +156,8 @@ renderer:
 
 ## Current architectural constraints
 
-- The application selects `CudaSolver` directly; there is no runtime
-  backend selection.
+- Backend selection occurs at process startup; there is no live backend
+  switching.
 - Simulation storage uses host `std::vector` allocations and is directly
   mutable through `ParticleData`; CUDA mirrors the active data in separate
   device allocations for each step.

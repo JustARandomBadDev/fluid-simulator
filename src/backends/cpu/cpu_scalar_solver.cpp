@@ -10,24 +10,26 @@
 
 namespace fluid::simulation {
 
-void CpuScalarSolver::init(glm::vec3 p_box_dim) {
-    _box_dim = p_box_dim;
+void CpuScalarSolver::init() {
+    _box_position = _config.box.position;
+    _box_dim = _config.box.dimensions;
 
     _grid.init(
-        p_box_dim,
+        _box_position,
+        _box_dim,
         _params.smoothingRadius,
-        ParticleSystem::MAX_PARTICLES
+        _config.particleCapacity
     );
 
-    _accelerations.resize(ParticleSystem::MAX_PARTICLES);
-    _inverse_densities.resize(ParticleSystem::MAX_PARTICLES);
-    _pressure_terms.resize(ParticleSystem::MAX_PARTICLES);
+    _accelerations.resize(_config.particleCapacity);
+    _inverse_densities.resize(_config.particleCapacity);
+    _pressure_terms.resize(_config.particleCapacity);
 }
 
 void CpuScalarSolver::step(ParticleData &p_particles, float p_dt) {
     if (p_particles.count == 0) return;
 
-    p_dt = std::min(p_dt, 0.001f);
+    p_dt = std::min(p_dt, _config.maximumTimeStep);
 
     _grid.rebuild(p_particles);
 
@@ -89,19 +91,12 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
         const float safe_density = std::max(density, 1e-6f);
         const float inverse_density = 1.0f / safe_density;
 
-        p_particles.densities[i] = density;
-        p_particles.pressures[i] = pressure;
-
         _inverse_densities[i] = inverse_density;
         _pressure_terms[i] = pressure * inverse_density * inverse_density;
     }
 }
 
 void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
-    constexpr float gravity_x = 0.0f;
-    constexpr float gravity_y = -9.81f;
-    constexpr float gravity_z = 0.0f;
-
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -184,9 +179,9 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
             }
         }
 
-        _accelerations[i] = {pressure_x + viscosity_x + gravity_x,
-            pressure_y + viscosity_y + gravity_y,
-            pressure_z + viscosity_z + gravity_z};
+        _accelerations[i] = {pressure_x + viscosity_x + _config.gravity.x,
+            pressure_y + viscosity_y + _config.gravity.y,
+            pressure_z + viscosity_z + _config.gravity.z};
     }
 }
 
@@ -232,33 +227,33 @@ void CpuScalarSolver::applyBoxCollision(
     float &p_velocity_z
 ) const {
     if (_box_dim.y > 0.0f) {
-        if (p_position_y < 0.0f) {
-            p_position_y = 0.0f;
+        if (p_position_y < _box_position.y) {
+            p_position_y = _box_position.y;
             p_velocity_y = 0.0f;
-        } else if (p_position_y > _box_dim.y) {
-            p_position_y = _box_dim.y;
+        } else if (p_position_y > _box_position.y + _box_dim.y) {
+            p_position_y = _box_position.y + _box_dim.y;
 
             p_velocity_y = 0.0f;
         }
     }
 
     if (_box_dim.x > 0.0f) {
-        if (p_position_x < 0.0f) {
-            p_position_x = 0.0f;
+        if (p_position_x < _box_position.x) {
+            p_position_x = _box_position.x;
             p_velocity_x = 0.0f;
-        } else if (p_position_x > _box_dim.x) {
-            p_position_x = _box_dim.x;
+        } else if (p_position_x > _box_position.x + _box_dim.x) {
+            p_position_x = _box_position.x + _box_dim.x;
 
             p_velocity_x = 0.0f;
         }
     }
 
     if (_box_dim.z > 0.0f) {
-        if (p_position_z < 0.0f) {
-            p_position_z = 0.0f;
+        if (p_position_z < _box_position.z) {
+            p_position_z = _box_position.z;
             p_velocity_z = 0.0f;
-        } else if (p_position_z > _box_dim.z) {
-            p_position_z = _box_dim.z;
+        } else if (p_position_z > _box_position.z + _box_dim.z) {
+            p_position_z = _box_position.z + _box_dim.z;
 
             p_velocity_z = 0.0f;
         }

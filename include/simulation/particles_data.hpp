@@ -15,9 +15,6 @@ struct ParticleData {
     std::vector<float> velocity_y;
     std::vector<float> velocity_z;
 
-    std::vector<float> densities;
-    std::vector<float> pressures;
-
     std::size_t count{};
 };
 

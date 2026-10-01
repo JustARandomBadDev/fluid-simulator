@@ -1,15 +1,37 @@
 #include "simulation/fluid_simulator.hpp"
 
+#include <memory>
 #include <stdexcept>
 
-namespace fluid::simulation {
+#include "backends/cpu/cpu_scalar_solver.hpp"
+#include "backends/cuda/cuda_solver.hpp"
 
-void FluidSimulator::init(glm::vec3 p_box_dim) {
-    if (p_box_dim.x < 0.f || p_box_dim.y < 0.f || p_box_dim.z < 0.f)
+namespace fluid::simulation {
+namespace {
+
+std::unique_ptr<Solver> createSolver(const SimulationConfig &config) {
+    switch (config.backend) {
+    case SimulationBackend::CpuScalar:
+        return std::make_unique<CpuScalarSolver>(config);
+    case SimulationBackend::Cuda:
+        return std::make_unique<CudaSolver>(config);
+    }
+
+    throw std::runtime_error("unsupported simulation backend");
+}
+
+} // namespace
+
+FluidSimulator::FluidSimulator(const SimulationConfig &config)
+    : _solver(createSolver(config)) {}
+
+void FluidSimulator::init(const SimulationConfig &config) {
+    const glm::vec3 &boxDimensions = config.box.dimensions;
+    if (boxDimensions.x < 0.f || boxDimensions.y < 0.f || boxDimensions.z < 0.f)
         throw std::runtime_error("Box dimension cannot be < 0");
 
-    _particle_system.init();
-    _solver->init(p_box_dim);
+    _particle_system.init(config);
+    _solver->init();
 }
 
 const ParticleData &FluidSimulator::update(float p_dt) {

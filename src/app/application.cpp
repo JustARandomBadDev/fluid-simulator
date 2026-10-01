@@ -1,11 +1,8 @@
 #include "app/application.hpp"
-#include "backends/cpu/cpu_scalar_solver.hpp"
-#include "backends/cuda/cuda_solver.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <memory>
 #include <span>
 #include <stdexcept>
 #include <utility>
@@ -14,16 +11,12 @@
 #include <GLFW/glfw3.h>
 
 namespace fluid {
-namespace {
 
-constexpr int kInitialWindowWidth = 1280;
-constexpr int kInitialWindowHeight = 720;
-constexpr const char *kWindowTitle = "Fluid Simulator - Vulkan particles";
-
-} // namespace
-
-Application::Application()
-    : _fluid_simulator(std::make_unique<simulation::CudaSolver>()) {}
+Application::Application(ApplicationConfig config)
+    : _config(std::move(config)),
+      _camera(_config.camera.position, 45.0f, 16.0f / 9.0f, 0.1f, 20.0f),
+      _fluid_simulator(_config.simulation),
+      _particle_vertices(_config.simulation.particleCapacity) {}
 
 Application::~Application() {
     cleanup();
@@ -52,11 +45,14 @@ void Application::createWindow() {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(
+        GLFW_RESIZABLE,
+        _config.window.resizable ? GLFW_TRUE : GLFW_FALSE
+    );
     _window = glfwCreateWindow(
-        kInitialWindowWidth,
-        kInitialWindowHeight,
-        kWindowTitle,
+        _config.window.width,
+        _config.window.height,
+        _config.window.title,
         nullptr,
         nullptr
     );
@@ -112,13 +108,13 @@ void Application::initializeGraphics() {
     config.enableValidationLayers = false;
 #endif
 
-    config.particleCapacity = simulation::ParticleSystem::MAX_PARTICLES;
+    config.particleCapacity = _config.simulation.particleCapacity;
 
     _graphics.init(config);
 }
 
 void Application::initializeSimulation() {
-    _fluid_simulator.init({2.f, 20.f, 2.f});
+    _fluid_simulator.init(_config.simulation);
 }
 
 void Application::mainLoop(bool smokeTest) {

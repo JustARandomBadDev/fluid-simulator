@@ -63,6 +63,7 @@ add_dependencies(fluid-simulator fluid_shaders)
 target_include_directories(fluid-simulator
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
+        ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 )
 
 target_link_libraries(fluid-simulator

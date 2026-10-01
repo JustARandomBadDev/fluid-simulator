@@ -7,10 +7,12 @@
 namespace fluid::simulation {
 
 void UniformGrid::init(
+    glm::vec3 p_position,
     glm::vec3 p_box_dim,
     float p_cell_size,
     std::size_t p_max_particles
 ) {
+    _position = p_position;
     _cell_size = p_cell_size;
     _inv_cell_size = 1.0f / p_cell_size;
 
@@ -41,7 +43,7 @@ UniformGrid::get(std::size_t p_x, std::size_t p_y, std::size_t p_z) const {
 }
 
 glm::ivec3 UniformGrid::positionToCell(glm::vec3 p_position) const {
-    return glm::ivec3(p_position * _inv_cell_size);
+    return glm::ivec3((p_position - _position) * _inv_cell_size);
 }
 
 bool UniformGrid::contains(glm::ivec3 p_position) const {
