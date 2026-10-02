@@ -175,6 +175,8 @@ vertices for rendering. CUDA and Vulkan do not share memory directly.
 See [Architecture](docs/architecture.md) for the Vulkan runtime and resource
 flow, and [Simulation](docs/simulation.md) for the SPH pipeline, SoA particle
 layout, Uniform Grid, simulation parameters, and CPU/CUDA execution models.
+Recorded performance measurements are kept in
+[Benchmark History](docs/benchmarks.md).
 
 ## Repository layout
 
