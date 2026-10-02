@@ -19,21 +19,21 @@ struct WindowConfig {
 };
 
 struct CameraConfig {
-    glm::vec3 position{1.0f, 1.0f, 5.0f};
+    glm::vec3 position{2.0f, 2.0f, 9.0f};
 };
 
 struct ParticleSpawnConfig {
-    std::size_t count = 20'000;
+    std::size_t count = 100'000;
 
-    glm::vec3 position{0.5f, 0.5f, 0.5f};
-    glm::vec3 dimensions{1.0f, 2.5f, 1.0f};
+    glm::vec3 position{1.f, 0.5f, 1.f};
+    glm::vec3 dimensions{2.0f, 5.5f, 2.0f};
 
     glm::vec3 initialVelocity{0.0f};
 };
 
 struct SimulationBoxConfig {
     glm::vec3 position{0.0f};
-    glm::vec3 dimensions{2.0f, 20.0f, 2.0f};
+    glm::vec3 dimensions{4.0f, 6.0f, 4.0f};
 };
 
 struct CudaConfig {

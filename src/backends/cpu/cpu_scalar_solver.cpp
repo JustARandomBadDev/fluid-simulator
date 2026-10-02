@@ -1,6 +1,5 @@
 #include "backends/cpu/cpu_scalar_solver.hpp"
 
-#include "simulation/particle_system.hpp"
 #include "simulation/particles_data.hpp"
 
 #include <algorithm>

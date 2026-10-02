@@ -1,10 +1,15 @@
 #include "backends/cuda/cuda_solver.hpp"
+
 #include "simulation/sph_constants.hpp"
 #include "simulation/sph_parameters.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cuda_runtime.h>
+#include <glm/ext/vector_uint3.hpp>
+
+#include "backends/cuda/cuda_uniform_grid.cuh"
 
 namespace fluid::simulation {
 
@@ -64,7 +69,14 @@ __global__ void pressureAndDensityKernel(
     const std::size_t p_count,
 
     const SphParameters* p_params,
-    const SphConstants* p_constants
+    const SphConstants* p_constants,
+
+    uint32_t* p_cell_counts,
+    uint32_t* p_cell_offsets,
+    uint32_t* p_particle_indices,
+    glm::ivec3* p_particle_cell_positions,
+
+    glm::uvec3 p_cells_dimensions
 ) {
     const std::size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -74,20 +86,45 @@ __global__ void pressureAndDensityKernel(
     const float piy = p_position_y[index];
     const float piz = p_position_z[index];
 
+    const glm::ivec3 cell_pos = p_particle_cell_positions[index];
+
     float density = 0.0f;
 
-    for (std::size_t j = 0; j < p_count; j++) {
-        const float rx = pix - p_position_x[j];
-        const float ry = piy - p_position_y[j];
-        const float rz = piz - p_position_z[j];
+    for (int z = -1; z <= 1; z++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                const glm::ivec3 neighbor_pos(
+                    cell_pos.x + x,
+                    cell_pos.y + y,
+                    cell_pos.z + z
+                );
 
-        const float r2 = rx * rx + ry * ry + rz * rz;
+                if (!contain(neighbor_pos, p_cells_dimensions)) continue;
 
-        if (r2 >= p_constants->h2) continue;
+                const uint32_t cell_index =
+                    get(glm::uvec3(neighbor_pos), p_cells_dimensions);
 
-        const float q = p_constants->h2 - r2;
+                const uint32_t offset = p_cell_offsets[cell_index];
+                const uint32_t count = p_cell_counts[cell_index];
+                const uint32_t end = offset + count;
 
-        density += p_constants->density_factor * q * q * q;
+                for (uint32_t k = offset; k < end; k++) {
+                    const uint32_t j = p_particle_indices[k];
+
+                    const float rx = pix - p_position_x[j];
+                    const float ry = piy - p_position_y[j];
+                    const float rz = piz - p_position_z[j];
+
+                    const float r2 = rx * rx + ry * ry + rz * rz;
+
+                    if (r2 >= p_constants->h2) continue;
+
+                    const float q = p_constants->h2 - r2;
+
+                    density += p_constants->density_factor * q * q * q;
+                }
+            }
+        }
     }
 
     const float pressure =
@@ -127,7 +164,14 @@ __global__ void accelerationKernel(
     const SphConstants* p_constants,
     const float p_gravity_x,
     const float p_gravity_y,
-    const float p_gravity_z
+    const float p_gravity_z,
+
+    uint32_t* p_cell_counts,
+    uint32_t* p_cell_offsets,
+    uint32_t* p_particle_indices,
+    glm::ivec3* p_particle_cell_positions,
+
+    glm::uvec3 p_cells_dimensions
 ) {
     const std::size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -151,47 +195,71 @@ __global__ void accelerationKernel(
     float viscosity_y = 0.0f;
     float viscosity_z = 0.0f;
 
-    for (std::size_t j = 0; j < p_count; j++) {
-        if (index == j) continue;
+    const glm::ivec3 cell_pos = p_particle_cell_positions[index];
 
-        const float rx = pix - p_position_x[j];
-        const float ry = piy - p_position_y[j];
-        const float rz = piz - p_position_z[j];
+    for (int z = -1; z <= 1; z++) {
+        for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+                const glm::ivec3 neighbor_pos(
+                    cell_pos.x + x,
+                    cell_pos.y + y,
+                    cell_pos.z + z
+                );
 
-        const float r2 = rx * rx + ry * ry + rz * rz;
+                if (!contain(neighbor_pos, p_cells_dimensions)) continue;
 
-        if (r2 <= 0.0f || r2 >= p_constants->h2) continue;
+                const uint32_t cell_index =
+                    get(glm::uvec3(neighbor_pos), p_cells_dimensions);
 
-        const float r = sqrtf(r2);
-        const float inverse_r = 1.0f / r;
+                const uint32_t offset = p_cell_offsets[cell_index];
+                const uint32_t count = p_cell_counts[cell_index];
+                const uint32_t end = offset + count;
 
-        const float distance_to_edge = p_params->smoothingRadius - r;
+                for (uint32_t k = offset; k < end; k++) {
+                    const uint32_t j = p_particle_indices[k];
 
-        const float distance_to_edge2 = distance_to_edge * distance_to_edge;
+                    if (index == j) continue;
 
-        const float pressure_scalar = p_constants->pressure_factor *
-                                      (pressure_i + p_pressure_terms[j]) *
-                                      distance_to_edge2 * inverse_r;
+                    const float rx = pix - p_position_x[j];
+                    const float ry = piy - p_position_y[j];
+                    const float rz = piz - p_position_z[j];
 
-        pressure_x += rx * pressure_scalar;
-        pressure_y += ry * pressure_scalar;
-        pressure_z += rz * pressure_scalar;
+                    const float r2 = rx * rx + ry * ry + rz * rz;
 
-        const float viscosity_scalar = p_constants->viscosity_factor *
-                                       p_inverse_densities[j] *
-                                       distance_to_edge;
+                    if (r2 <= 0.0f || r2 >= p_constants->h2) continue;
 
-        viscosity_x += (p_velocity_x[j] - vix) * viscosity_scalar;
+                    const float r = sqrtf(r2);
+                    const float inverse_r = 1.0f / r;
 
-        viscosity_y += (p_velocity_y[j] - viy) * viscosity_scalar;
+                    const float distance_to_edge =
+                        p_params->smoothingRadius - r;
 
-        viscosity_z += (p_velocity_z[j] - viz) * viscosity_scalar;
+                    const float distance_to_edge2 =
+                        distance_to_edge * distance_to_edge;
+
+                    const float pressure_scalar =
+                        p_constants->pressure_factor *
+                        (pressure_i + p_pressure_terms[j]) * distance_to_edge2 *
+                        inverse_r;
+
+                    pressure_x += rx * pressure_scalar;
+                    pressure_y += ry * pressure_scalar;
+                    pressure_z += rz * pressure_scalar;
+
+                    const float viscosity_scalar =
+                        p_constants->viscosity_factor * p_inverse_densities[j] *
+                        distance_to_edge;
+
+                    viscosity_x += (p_velocity_x[j] - vix) * viscosity_scalar;
+                    viscosity_y += (p_velocity_y[j] - viy) * viscosity_scalar;
+                    viscosity_z += (p_velocity_z[j] - viz) * viscosity_scalar;
+                }
+            }
+        }
     }
 
     p_accelerations_x[index] = pressure_x + viscosity_x + p_gravity_x;
-
     p_accelerations_y[index] = pressure_y + viscosity_y + p_gravity_y;
-
     p_accelerations_z[index] = pressure_z + viscosity_z + p_gravity_z;
 }
 
@@ -226,9 +294,7 @@ __global__ void integrateKernel(
     float* velocity_z = p_velocity_z + index;
 
     *velocity_x += p_accelerations_x[index] * p_dt;
-
     *velocity_y += p_accelerations_y[index] * p_dt;
-
     *velocity_z += p_accelerations_z[index] * p_dt;
 
     *position_x += *velocity_x * p_dt;
@@ -255,6 +321,13 @@ void CudaSolver::init() {
         _config.box.dimensions.x,
         _config.box.dimensions.y,
         _config.box.dimensions.z};
+
+    _uniform_grid.init(
+        _config.box.position,
+        _config.box.dimensions,
+        _params.smoothingRadius,
+        _config.particleCapacity
+    );
 
     const std::size_t buffer_size = _config.particleCapacity * sizeof(float);
 
@@ -348,6 +421,9 @@ void CudaSolver::step(ParticleData& p_particles, float p_dt) {
         cudaMemcpyHostToDevice
     );
 
+    _uniform_grid
+        .rebuild(_position_x, _position_y, _position_z, p_particles.count);
+
     const std::size_t threads = _config.cuda.blockSize;
 
     const std::size_t blocks = (p_particles.count + threads - 1) / threads;
@@ -366,7 +442,13 @@ void CudaSolver::step(ParticleData& p_particles, float p_dt) {
         p_particles.count,
 
         _cuda_params,
-        _cuda_constants
+        _cuda_constants,
+
+        _uniform_grid.getCounts(),
+        _uniform_grid.getOffsets(),
+        _uniform_grid.getParticleIndices(),
+        _uniform_grid.getParticleCellPositions(),
+        _uniform_grid.getDimensions()
     );
 
     if (cudaGetLastError() != cudaSuccess) {
@@ -395,7 +477,13 @@ void CudaSolver::step(ParticleData& p_particles, float p_dt) {
         _cuda_constants,
         _config.gravity.x,
         _config.gravity.y,
-        _config.gravity.z
+        _config.gravity.z,
+
+        _uniform_grid.getCounts(),
+        _uniform_grid.getOffsets(),
+        _uniform_grid.getParticleIndices(),
+        _uniform_grid.getParticleCellPositions(),
+        _uniform_grid.getDimensions()
     );
 
     if (cudaGetLastError() != cudaSuccess) {

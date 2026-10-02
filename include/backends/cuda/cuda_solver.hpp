@@ -1,6 +1,7 @@
 #ifndef FLUID_SIMULATOR_CUDA_SOLVER_HPP
 #define FLUID_SIMULATOR_CUDA_SOLVER_HPP
 
+#include "backends/cuda/cuda_uniform_grid.hpp"
 #include "simulation/solver.hpp"
 #include "simulation/sph_constants.hpp"
 #include "simulation/sph_parameters.hpp"
@@ -22,7 +23,8 @@ namespace fluid::simulation {
 
 class CudaSolver : public Solver {
   public:
-    explicit CudaSolver(const SimulationConfig& config) : Solver(config) {}
+    explicit CudaSolver(const SimulationConfig& config)
+        : Solver(config), _uniform_grid(config) {}
     CudaSolver(const CudaSolver&) = delete;
 
     ~CudaSolver();
@@ -53,6 +55,8 @@ class CudaSolver : public Solver {
 
     SphParameters* _cuda_params;
     SphConstants* _cuda_constants;
+
+    CudaUniformGrid _uniform_grid;
 };
 
 } // namespace fluid::simulation
