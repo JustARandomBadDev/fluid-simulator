@@ -6,9 +6,6 @@
 #include <cub/cub.cuh>
 #include <cuda_runtime.h>
 
-#include <glm/ext/vector_int3.hpp>
-#include <glm/ext/vector_uint3.hpp>
-
 #include "backends/cuda/cuda_uniform_grid.cuh"
 
 namespace fluid::simulation {
@@ -18,11 +15,11 @@ __global__ void updateParticlesCellKernel(
     float* p_particle_pos_y,
     float* p_particle_pos_z,
     std::size_t p_particles_count,
-    glm::vec3 p_box_pos,
-    glm::uvec3 p_dimensions,
+    float3 p_box_pos,
+    uint3 p_dimensions,
     float p_inv_cell_size,
     uint32_t* p_particle_cells,
-    glm::ivec3* p_particle_cell_positions
+    int3* p_particle_cell_positions
 ) {
     const std::size_t index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -30,18 +27,27 @@ __global__ void updateParticlesCellKernel(
         return;
     }
 
-    const glm::vec3 position{p_particle_pos_x[index],
+    const float3 position = make_float3(
+        p_particle_pos_x[index],
         p_particle_pos_y[index],
-        p_particle_pos_z[index]};
+        p_particle_pos_z[index]
+    );
 
-    const glm::ivec3 cell_position =
+    const int3 cell_position =
         positionToCell(position, p_box_pos, p_inv_cell_size);
 
-    if (!contain(cell_position, p_dimensions)) {
+    if (!isCellInsideGrid(cell_position, p_dimensions)) {
         return;
     }
 
-    const uint32_t new_cell = get(glm::uvec3(cell_position), p_dimensions);
+    const uint32_t new_cell = getCellIndex(
+        make_uint3(
+            static_cast<unsigned int>(cell_position.x),
+            static_cast<unsigned int>(cell_position.y),
+            static_cast<unsigned int>(cell_position.z)
+        ),
+        p_dimensions
+    );
 
     p_particle_cells[index] = new_cell;
     p_particle_cell_positions[index] = cell_position;
@@ -85,6 +91,38 @@ __global__ void updateParticleIndicesKernel(
     p_particle_indices[destination] = index;
 }
 
+void CudaUniformGrid::init(float p_cell_size) {
+    _inv_cell_size = 1.0f / p_cell_size;
+
+    const uint3 dimensions = getDimensions();
+
+    _nb_cells = dimensions.x * dimensions.y * dimensions.z;
+
+    const std::size_t cell_uint_size = sizeof(uint32_t) * _nb_cells;
+    const std::size_t particle_uint_size =
+        sizeof(uint32_t) * _config.particleCapacity;
+    const std::size_t particle_ivec_size =
+        sizeof(int3) * _config.particleCapacity;
+
+    cudaMalloc(&_cell_counts, cell_uint_size);
+    cudaMalloc(&_cell_offsets, cell_uint_size);
+    cudaMalloc(&_current_cell_counts, cell_uint_size);
+
+    cudaMalloc(&_particle_indices, particle_uint_size);
+    cudaMalloc(&_particle_cells, particle_uint_size);
+    cudaMalloc(&_particle_cell_positions, particle_ivec_size);
+
+    cub::DeviceScan::ExclusiveSum(
+        nullptr,
+        _scan_temp_storage_bytes,
+        _cell_counts,
+        _cell_offsets,
+        _nb_cells
+    );
+
+    cudaMalloc(&_scan_temp_storage, _scan_temp_storage_bytes);
+}
+
 void CudaUniformGrid::rebuild(
     float* p_particle_pos_x,
     float* p_particle_pos_y,
@@ -93,14 +131,19 @@ void CudaUniformGrid::rebuild(
 ) {
     const std::size_t threads = _config.cuda.blockSize;
     const std::size_t blocks = (p_particles_count + threads - 1) / threads;
+    const uint3 dimensions = getDimensions();
 
     updateParticlesCellKernel<<<blocks, threads>>>(
         p_particle_pos_x,
         p_particle_pos_y,
         p_particle_pos_z,
         p_particles_count,
-        _config.box.position,
-        _dimensions,
+        make_float3(
+            _config.box.position.x,
+            _config.box.position.y,
+            _config.box.position.z
+        ),
+        dimensions,
         _inv_cell_size,
         _particle_cells,
         _particle_cell_positions
@@ -136,46 +179,15 @@ void CudaUniformGrid::rebuild(
     _initialized = true;
 }
 
-void CudaUniformGrid::init(
-    glm::vec3 p_position,
-    glm::vec3 p_box_dim,
-    float p_cell_size,
-    std::size_t p_max_particles
-) {
-    _position = p_position;
-
-    _cell_size = p_cell_size;
-    _inv_cell_size = 1.0f / p_cell_size;
-
-    _dimensions = glm::uvec3(p_box_dim * _inv_cell_size) + glm::uvec3(1);
-
-    _nb_cells = _dimensions.x * _dimensions.y * _dimensions.z;
-
-    _max_particles = p_max_particles;
-
-    const std::size_t cell_uint_size = sizeof(uint32_t) * _nb_cells;
-
-    const std::size_t particle_uint_size = sizeof(uint32_t) * p_max_particles;
-
-    const std::size_t particle_ivec_size = sizeof(glm::ivec3) * p_max_particles;
-
-    cudaMalloc(&_cell_counts, cell_uint_size);
-    cudaMalloc(&_cell_offsets, cell_uint_size);
-    cudaMalloc(&_current_cell_counts, cell_uint_size);
-
-    cudaMalloc(&_particle_indices, particle_uint_size);
-    cudaMalloc(&_particle_cells, particle_uint_size);
-    cudaMalloc(&_particle_cell_positions, particle_ivec_size);
-
-    cub::DeviceScan::ExclusiveSum(
-        nullptr,
-        _scan_temp_storage_bytes,
-        _cell_counts,
-        _cell_offsets,
-        _nb_cells
+uint3 CudaUniformGrid::getDimensions() const {
+    return make_uint3(
+        static_cast<unsigned int>(_config.box.dimensions.x * _inv_cell_size) +
+            1u,
+        static_cast<unsigned int>(_config.box.dimensions.y * _inv_cell_size) +
+            1u,
+        static_cast<unsigned int>(_config.box.dimensions.z * _inv_cell_size) +
+            1u
     );
-
-    cudaMalloc(&_scan_temp_storage, _scan_temp_storage_bytes);
 }
 
 CudaUniformGrid::~CudaUniformGrid() {

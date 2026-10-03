@@ -1,31 +1,23 @@
 #ifndef FLUID_SIMULATOR_CUDA_SOLVER_HPP
 #define FLUID_SIMULATOR_CUDA_SOLVER_HPP
 
-#include "backends/cuda/cuda_uniform_grid.hpp"
+#include "backends/cuda/cuda_sph_kernels.cuh"
 #include "simulation/solver.hpp"
-#include "simulation/sph_constants.hpp"
-#include "simulation/sph_parameters.hpp"
-
-namespace {
-
-struct BoxDim {
-    const float position_x;
-    const float position_y;
-    const float position_z;
-    const float x;
-    const float y;
-    const float z;
-};
-
-} // namespace
 
 namespace fluid::simulation {
 
 class CudaSolver : public Solver {
   public:
-    explicit CudaSolver(const SimulationConfig& config)
-        : Solver(config), _uniform_grid(config) {}
+    CudaSolver(const SimulationConfig& config)
+        : Solver(config), _uniform_grid(config),
+          _box_config{config.box.position.x,
+              config.box.position.y,
+              config.box.position.z,
+              config.box.position.x + config.box.dimensions.x,
+              config.box.position.y + config.box.dimensions.y,
+              config.box.position.z + config.box.dimensions.z} {}
     CudaSolver(const CudaSolver&) = delete;
+    CudaSolver& operator=(const CudaSolver&) = delete;
 
     ~CudaSolver();
 
@@ -33,29 +25,22 @@ class CudaSolver : public Solver {
     void step(ParticleData& p_particles, float p_dt) override;
 
   private:
-    float* _position_x;
-    float* _position_y;
-    float* _position_z;
+    float* _position_x{};
+    float* _position_y{};
+    float* _position_z{};
 
-    float* _velocity_x;
-    float* _velocity_y;
-    float* _velocity_z;
+    float* _velocity_x{};
+    float* _velocity_y{};
+    float* _velocity_z{};
 
-    float* _densities;
-    float* _pressures;
+    float* _inverse_densities{};
+    float* _pressure_terms{};
 
-    float* _inverse_densities;
-    float* _pressure_terms;
+    float* _accelerations_x{};
+    float* _accelerations_y{};
+    float* _accelerations_z{};
 
-    float* _accelerations_x;
-    float* _accelerations_y;
-    float* _accelerations_z;
-
-    BoxDim* _box_dim;
-
-    SphParameters* _cuda_params;
-    SphConstants* _cuda_constants;
-
+    BoxConfig _box_config;
     CudaUniformGrid _uniform_grid;
 };
 

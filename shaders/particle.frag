@@ -9,4 +9,5 @@ void main() {
     }
 
     outColor = vec4(0.20, 0.75, 1.0, 1.0);
+    // outColor = vec4(1.0, 0.22, 0.03, 1.0);
 }
