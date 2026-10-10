@@ -1,5 +1,6 @@
 #include "app/application.hpp"
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -32,6 +33,71 @@ void Application::run(bool smokeTest) {
     initializeSimulation();
     mainLoop(smokeTest);
     cleanup();
+}
+
+std::vector<double> Application::runFrameBenchmark(
+    std::size_t p_warmup_frames,
+    std::size_t p_measured_frames,
+    float p_delta_time
+) {
+    if (p_measured_frames == 0) {
+        throw std::runtime_error(
+            "interop benchmark measured frame count must be greater than 0"
+        );
+    }
+
+    createWindow();
+    initializeGraphics();
+    initializeSimulation();
+
+    std::vector<double> frameTimesMilliseconds;
+    frameTimesMilliseconds.reserve(p_measured_frames);
+
+    const std::size_t frameCount = p_warmup_frames + p_measured_frames;
+    std::size_t completedFrames = 0;
+    while (completedFrames < frameCount) {
+        glfwPollEvents();
+        if (glfwWindowShouldClose(_window) == GLFW_TRUE) {
+            throw std::runtime_error("interop benchmark window was closed");
+        }
+
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(_window, &width, &height);
+        if (width == 0 || height == 0) {
+            glfwWaitEvents();
+            continue;
+        }
+
+        const auto start = std::chrono::steady_clock::now();
+        if (_use_cuda_interop && !_graphics.prepareCudaInteropFrame()) {
+            continue;
+        }
+
+        update(p_delta_time);
+        _camera.updateProjection(_graphics.getAspectRatio());
+        if (_use_cuda_interop) {
+            _graphics.renderCudaInterop(
+                _camera,
+                _active_particle_count,
+                _cuda_interop_sync.cudaReadyValue,
+                _cuda_interop_sync.vulkanDoneValue
+            );
+        } else {
+            _graphics.render(_camera);
+        }
+        const auto end = std::chrono::steady_clock::now();
+
+        if (completedFrames >= p_warmup_frames) {
+            frameTimesMilliseconds.push_back(
+                std::chrono::duration<double, std::milli>(end - start).count()
+            );
+        }
+        completedFrames++;
+    }
+
+    cleanup();
+    return frameTimesMilliseconds;
 }
 
 void Application::createWindow() {
@@ -78,9 +144,7 @@ void Application::initializeGraphics() {
 
     graphics::VulkanHostConfig hostConfig;
     for (uint32_t index = 0; index < extensionCount; ++index) {
-        hostConfig.requiredInstanceExtensions.push_back(
-            glfwExtensions[index]
-        );
+        hostConfig.requiredInstanceExtensions.push_back(glfwExtensions[index]);
     }
 
     if (_use_cuda_interop) {

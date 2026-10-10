@@ -1,6 +1,7 @@
 #ifndef FLUID_APP_APPLICATION_HPP
 #define FLUID_APP_APPLICATION_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -24,6 +25,11 @@ class Application {
     ~Application();
 
     void run(bool smokeTest = false);
+    std::vector<double> runFrameBenchmark(
+        std::size_t p_warmup_frames,
+        std::size_t p_measured_frames,
+        float p_delta_time
+    );
 
   private:
     ApplicationConfig _config;

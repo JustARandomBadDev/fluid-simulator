@@ -9,6 +9,7 @@
 
 #include "app/application.hpp"
 #include "benchmark/benchmark.hpp"
+#include "benchmark/interop_benchmark.hpp"
 #include "config.hpp"
 
 namespace {
@@ -16,6 +17,7 @@ namespace {
 struct CommandLineOptions {
     bool help = false;
     bool benchmark = false;
+    bool benchmarkInterop = false;
     bool smokeTest = false;
     bool enableInterop = false;
     fluid::SimulationBackend backend = fluid::SimulationBackend::Cuda;
@@ -30,6 +32,7 @@ void printHelp() {
                  "  --backend cpu      Use the CPU scalar backend\n"
                  "  --backend cuda     Use the CUDA backend (default)\n"
                  "  --benchmark        Run the headless simulation benchmark\n"
+                 "  --benchmark-interop Compare CUDA rendering paths\n"
                  "  --interop          Enable Vulkan/CUDA interoperability\n"
                  "  --smoke-test       Run the existing graphics smoke test\n";
 }
@@ -53,6 +56,8 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
             options.help = true;
         } else if (argument == "--benchmark") {
             options.benchmark = true;
+        } else if (argument == "--benchmark-interop") {
+            options.benchmarkInterop = true;
         } else if (argument == "--smoke-test") {
             options.smokeTest = true;
         } else if (argument == "--interop") {
@@ -73,6 +78,16 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
     if (!options.help && options.benchmark && options.smokeTest) {
         throw std::runtime_error(
             "--benchmark cannot be combined with --smoke-test"
+        );
+    }
+    if (!options.help && options.benchmark && options.benchmarkInterop) {
+        throw std::runtime_error(
+            "--benchmark cannot be combined with --benchmark-interop"
+        );
+    }
+    if (!options.help && options.benchmarkInterop && options.smokeTest) {
+        throw std::runtime_error(
+            "--benchmark-interop cannot be combined with --smoke-test"
         );
     }
 
@@ -103,6 +118,11 @@ int main(int argc, char** argv) {
         if (options.help) {
             printHelp();
             return 0;
+        }
+
+        if (options.benchmarkInterop) {
+            validateBackendAvailability(fluid::SimulationBackend::Cuda);
+            return fluid::benchmark::runInterop();
         }
 
         validateBackendAvailability(options.backend);
