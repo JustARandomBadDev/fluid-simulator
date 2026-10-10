@@ -21,7 +21,7 @@ Current implementation using the CUDA SPH backend, GPU Uniform Grid, and Vulkan/
 - CUDA Uniform Grid neighbor search
 - Vulkan/CUDA interoperability
 
-<!-- add link online -->
+https://github.com/user-attachments/assets/9e7c370d-773c-4394-b476-cec325717d64
 
 ### CPU + Uniform Grid — 20,000 particles
 
