@@ -12,26 +12,27 @@ namespace fluid::simulation {
 
 class CpuScalarSolver : public Solver {
   public:
-    CpuScalarSolver() = default;
+    explicit CpuScalarSolver(const SimulationConfig& config) : Solver(config) {}
 
-    void init(glm::vec3 p_box_dim) override;
-    void step(ParticleData &p_particles, float p_dt) override;
+    void init() override;
+    void step(ParticleData& p_particles, float p_dt) override;
 
   private:
-    void computeDensityAndPressure(ParticleData &p_particles);
-    void computeAccelerations(ParticleData &p_particles);
-    void integrate(ParticleData &p_particles, float p_dt);
+    void computeDensityAndPressure(ParticleData& p_particles);
+    void computeAccelerations(ParticleData& p_particles);
+    void integrate(ParticleData& p_particles, float p_dt);
 
     void applyBoxCollision(
-        float &p_position_x,
-        float &p_position_y,
-        float &p_position_z,
-        float &p_velocity_x,
-        float &p_velocity_y,
-        float &p_velocity_z
+        float& p_position_x,
+        float& p_position_y,
+        float& p_position_z,
+        float& p_velocity_x,
+        float& p_velocity_y,
+        float& p_velocity_z
     ) const;
 
   private:
+    glm::vec3 _box_position;
     glm::vec3 _box_dim;
 
     UniformGrid _grid;

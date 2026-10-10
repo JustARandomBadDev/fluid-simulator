@@ -10,8 +10,8 @@ namespace fluid::graphics {
 namespace {
 
 void validateRequiredResourcePath(
-    const std::filesystem::path &path,
-    const char *resource_name
+    const std::filesystem::path& path,
+    const char* resource_name
 ) {
     if (path.empty()) {
         throw std::runtime_error(
@@ -34,7 +34,7 @@ void validateRequiredResourcePath(
     }
 }
 
-void validateGraphicsResources(const GraphicsResourceConfig &resources) {
+void validateGraphicsResources(const GraphicsResourceConfig& resources) {
     validateRequiredResourcePath(
         resources.particleVertexShader,
         "graphicsResources.particleVertexShader"
@@ -45,7 +45,7 @@ void validateGraphicsResources(const GraphicsResourceConfig &resources) {
     );
 }
 
-void validateInitConfig(const GraphicsRuntimeConfig &config) {
+void validateInitConfig(const GraphicsRuntimeConfig& config) {
     if (!config.vulkanHost.createSurface) {
         throw std::runtime_error(
             "GraphicsRuntime::init() -> vulkanHost.createSurface callback must "
@@ -141,12 +141,13 @@ bool GraphicsRuntime::ensureSwapchainReady() {
     return true;
 }
 
-void GraphicsRuntime::init(const GraphicsRuntimeConfig &config) {
+void GraphicsRuntime::init(const GraphicsRuntimeConfig& config) {
     validateInitConfig(config);
     validateGraphicsResources(config.graphicsResources);
 
     _host_config = config.vulkanHost;
     _clear_color = config.clearColor;
+    _cuda_interop_enabled = config.enableCudaInterop;
 
     const VkExtent2D framebufferExtent = getFramebufferExtent();
     if (framebufferExtent.width == 0 || framebufferExtent.height == 0) {
@@ -162,11 +163,13 @@ void GraphicsRuntime::init(const GraphicsRuntimeConfig &config) {
             config.graphicsResources,
             config.framesInFlight,
             config.enableValidationLayers,
+            config.enableCudaInterop,
             framebufferExtent
         );
         _particle_buffer.initialize(
             config.particleCapacity,
-            config.framesInFlight
+            config.framesInFlight,
+            config.enableCudaInterop
         );
         _initialized = true;
     } catch (...) {
@@ -190,7 +193,7 @@ void GraphicsRuntime::updateParticles(
     _particle_buffer.update(renderer.getCurrentFrame(), p_particles);
 }
 
-void GraphicsRuntime::render(const core::Camera &camera) {
+void GraphicsRuntime::render(const core::Camera& camera) {
     if (!_initialized) {
         throw std::runtime_error(
             "GraphicsRuntime::render() -> runtime is not initialized"
@@ -203,11 +206,64 @@ void GraphicsRuntime::render(const core::Camera &camera) {
     if (frameRenderer.render(
             camera,
             _clear_color,
-            _particle_buffer.buffer(currentFrame),
+            _particle_buffer.buffer(currentFrame).getBuffer(),
             _particle_buffer.count(currentFrame)
         ) == FrameRenderStatus::NeedsRecreate) {
         _swapchain_needs_recreate = true;
         ensureSwapchainReady();
+    }
+}
+
+bool GraphicsRuntime::prepareCudaInteropFrame() {
+    if (!_initialized || !_cuda_interop_enabled) {
+        throw std::runtime_error(
+            "GraphicsRuntime::prepareCudaInteropFrame() -> CUDA interop is "
+            "not initialized"
+        );
+    }
+
+    if (!ensureSwapchainReady()) return false;
+
+    if (!frameRenderer.prepareFrame()) {
+        _swapchain_needs_recreate = true;
+        ensureSwapchainReady();
+        return false;
+    }
+
+    return true;
+}
+
+void GraphicsRuntime::renderCudaInterop(
+    const core::Camera& p_camera,
+    uint32_t p_particle_count,
+    uint64_t p_cuda_ready_value,
+    uint64_t p_vulkan_done_value
+) {
+    if (!_initialized || !_cuda_interop_enabled) {
+        throw std::runtime_error(
+            "GraphicsRuntime::renderCudaInterop() -> CUDA interop is not "
+            "initialized"
+        );
+    }
+
+    const uint32_t currentFrame = renderer.getCurrentFrame();
+    if (frameRenderer.render(
+            p_camera,
+            _clear_color,
+            _particle_buffer.cudaInteropBuffer(currentFrame),
+            p_particle_count,
+            _particle_buffer.cudaInteropSemaphore(currentFrame),
+            p_cuda_ready_value,
+            p_vulkan_done_value
+        ) == FrameRenderStatus::NeedsRecreate) {
+        _swapchain_needs_recreate = true;
+        ensureSwapchainReady();
+    }
+}
+
+void GraphicsRuntime::waitIdle() {
+    if (device.getDevice() != VK_NULL_HANDLE) {
+        vkDeviceWaitIdle(device.getDevice());
     }
 }
 
@@ -226,6 +282,26 @@ void GraphicsRuntime::cleanup() {
     _host_config = {};
     _swapchain_needs_recreate = false;
     _initialized = false;
+    _cuda_interop_enabled = false;
+}
+
+uint32_t GraphicsRuntime::getCurrentFrame() const {
+    return renderer.getCurrentFrame();
+}
+
+std::size_t GraphicsRuntime::getCudaInteropSlotCount() const {
+    return _particle_buffer.cudaInteropSlotCount();
+}
+
+CudaInteropBufferExport
+GraphicsRuntime::exportCudaInteropBuffer(uint32_t p_frame_index) const {
+    return _particle_buffer.exportCudaInteropBuffer(p_frame_index);
+}
+
+int GraphicsRuntime::exportCudaInteropSemaphoreFd(
+    uint32_t p_frame_index
+) const {
+    return _particle_buffer.exportCudaInteropSemaphoreFd(p_frame_index);
 }
 
 } // namespace fluid::graphics

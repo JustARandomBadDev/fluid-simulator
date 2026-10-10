@@ -1,4 +1,3 @@
-
 BasedOnStyle: LLVM
 
 # Indentation
@@ -14,8 +13,8 @@ ColumnLimit: 80
 BreakBeforeBraces: Attach
 
 # Pointers and references
-PointerAlignment: Right
-ReferenceAlignment: Right
+PointerAlignment: Left
+ReferenceAlignment: Left
 DerivePointerAlignment: false
 
 # Short statements

@@ -1,6 +1,5 @@
 #include "backends/cpu/cpu_scalar_solver.hpp"
 
-#include "simulation/particle_system.hpp"
 #include "simulation/particles_data.hpp"
 
 #include <algorithm>
@@ -10,24 +9,26 @@
 
 namespace fluid::simulation {
 
-void CpuScalarSolver::init(glm::vec3 p_box_dim) {
-    _box_dim = p_box_dim;
+void CpuScalarSolver::init() {
+    _box_position = _config.box.position;
+    _box_dim = _config.box.dimensions;
 
     _grid.init(
-        p_box_dim,
+        _box_position,
+        _box_dim,
         _params.smoothingRadius,
-        ParticleSystem::MAX_PARTICLES
+        _config.particleCapacity
     );
 
-    _accelerations.resize(ParticleSystem::MAX_PARTICLES);
-    _inverse_densities.resize(ParticleSystem::MAX_PARTICLES);
-    _pressure_terms.resize(ParticleSystem::MAX_PARTICLES);
+    _accelerations.resize(_config.particleCapacity);
+    _inverse_densities.resize(_config.particleCapacity);
+    _pressure_terms.resize(_config.particleCapacity);
 }
 
-void CpuScalarSolver::step(ParticleData &p_particles, float p_dt) {
+void CpuScalarSolver::step(ParticleData& p_particles, float p_dt) {
     if (p_particles.count == 0) return;
 
-    p_dt = std::min(p_dt, 0.001f);
+    p_dt = std::min(p_dt, _config.maximumTimeStep);
 
     _grid.rebuild(p_particles);
 
@@ -39,9 +40,7 @@ void CpuScalarSolver::step(ParticleData &p_particles, float p_dt) {
     }
 }
 
-void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
-    const float density_factor = _params.particleMass * _constants.poly6;
-
+void CpuScalarSolver::computeDensityAndPressure(ParticleData& p_particles) {
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -49,7 +48,7 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
         const float piy = p_particles.position_y[i];
         const float piz = p_particles.position_z[i];
 
-        const glm::ivec3 &cell_pos = _grid.getParticleCellPosition(i);
+        const glm::ivec3& cell_pos = _grid.getParticleCellPosition(i);
 
         float density = 0.0f;
 
@@ -80,7 +79,7 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
 
                         const float q = _constants.h2 - r2;
 
-                        density += density_factor * q * q * q;
+                        density += _constants.density_factor * q * q * q;
                     }
                 }
             }
@@ -91,23 +90,12 @@ void CpuScalarSolver::computeDensityAndPressure(ParticleData &p_particles) {
         const float safe_density = std::max(density, 1e-6f);
         const float inverse_density = 1.0f / safe_density;
 
-        p_particles.densities[i] = density;
-        p_particles.pressures[i] = pressure;
-
         _inverse_densities[i] = inverse_density;
         _pressure_terms[i] = pressure * inverse_density * inverse_density;
     }
 }
 
-void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
-    constexpr float gravity_x = 0.0f;
-    constexpr float gravity_y = -9.81f;
-    constexpr float gravity_z = 0.0f;
-
-    const float pressure_factor = _params.particleMass * _constants.spiky;
-    const float viscosity_factor =
-        _params.viscosity * _params.particleMass * _constants.spiky;
-
+void CpuScalarSolver::computeAccelerations(ParticleData& p_particles) {
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
@@ -119,7 +107,7 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
         const float viy = p_particles.velocity_y[i];
         const float viz = p_particles.velocity_z[i];
 
-        const glm::ivec3 &cell_pos = _grid.getParticleCellPosition(i);
+        const glm::ivec3& cell_pos = _grid.getParticleCellPosition(i);
 
         const float pressure_i = _pressure_terms[i];
 
@@ -167,7 +155,7 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
                             distance_to_edge * distance_to_edge;
 
                         const float pressure_scalar =
-                            pressure_factor *
+                            _constants.pressure_factor *
                             (pressure_i + _pressure_terms[j]) *
                             distance_to_edge2 * inverse_r;
 
@@ -175,9 +163,9 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
                         pressure_y += ry * pressure_scalar;
                         pressure_z += rz * pressure_scalar;
 
-                        const float viscosity_scalar = viscosity_factor *
-                                                       _inverse_densities[j] *
-                                                       distance_to_edge;
+                        const float viscosity_scalar =
+                            _constants.viscosity_factor *
+                            _inverse_densities[j] * distance_to_edge;
 
                         viscosity_x += (p_particles.velocity_x[j] - vix) *
                                        viscosity_scalar;
@@ -190,25 +178,25 @@ void CpuScalarSolver::computeAccelerations(ParticleData &p_particles) {
             }
         }
 
-        _accelerations[i] = {pressure_x + viscosity_x + gravity_x,
-            pressure_y + viscosity_y + gravity_y,
-            pressure_z + viscosity_z + gravity_z};
+        _accelerations[i] = {pressure_x + viscosity_x + _config.gravity.x,
+            pressure_y + viscosity_y + _config.gravity.y,
+            pressure_z + viscosity_z + _config.gravity.z};
     }
 }
 
-void CpuScalarSolver::integrate(ParticleData &p_particles, float p_dt) {
+void CpuScalarSolver::integrate(ParticleData& p_particles, float p_dt) {
     #pragma omp for schedule(static)
 
     for (std::size_t i = 0; i < p_particles.count; i++) {
-        float &position_x = p_particles.position_x[i];
-        float &position_y = p_particles.position_y[i];
-        float &position_z = p_particles.position_z[i];
+        float& position_x = p_particles.position_x[i];
+        float& position_y = p_particles.position_y[i];
+        float& position_z = p_particles.position_z[i];
 
-        float &velocity_x = p_particles.velocity_x[i];
-        float &velocity_y = p_particles.velocity_y[i];
-        float &velocity_z = p_particles.velocity_z[i];
+        float& velocity_x = p_particles.velocity_x[i];
+        float& velocity_y = p_particles.velocity_y[i];
+        float& velocity_z = p_particles.velocity_z[i];
 
-        const auto &acceleration = _accelerations[i];
+        const auto& acceleration = _accelerations[i];
 
         velocity_x += acceleration.x * p_dt;
         velocity_y += acceleration.y * p_dt;
@@ -230,41 +218,41 @@ void CpuScalarSolver::integrate(ParticleData &p_particles, float p_dt) {
 }
 
 void CpuScalarSolver::applyBoxCollision(
-    float &p_position_x,
-    float &p_position_y,
-    float &p_position_z,
-    float &p_velocity_x,
-    float &p_velocity_y,
-    float &p_velocity_z
+    float& p_position_x,
+    float& p_position_y,
+    float& p_position_z,
+    float& p_velocity_x,
+    float& p_velocity_y,
+    float& p_velocity_z
 ) const {
     if (_box_dim.y > 0.0f) {
-        if (p_position_y < 0.0f) {
-            p_position_y = 0.0f;
+        if (p_position_y < _box_position.y) {
+            p_position_y = _box_position.y;
             p_velocity_y = 0.0f;
-        } else if (p_position_y > _box_dim.y) {
-            p_position_y = _box_dim.y;
+        } else if (p_position_y > _box_position.y + _box_dim.y) {
+            p_position_y = _box_position.y + _box_dim.y;
 
             p_velocity_y = 0.0f;
         }
     }
 
     if (_box_dim.x > 0.0f) {
-        if (p_position_x < 0.0f) {
-            p_position_x = 0.0f;
+        if (p_position_x < _box_position.x) {
+            p_position_x = _box_position.x;
             p_velocity_x = 0.0f;
-        } else if (p_position_x > _box_dim.x) {
-            p_position_x = _box_dim.x;
+        } else if (p_position_x > _box_position.x + _box_dim.x) {
+            p_position_x = _box_position.x + _box_dim.x;
 
             p_velocity_x = 0.0f;
         }
     }
 
     if (_box_dim.z > 0.0f) {
-        if (p_position_z < 0.0f) {
-            p_position_z = 0.0f;
+        if (p_position_z < _box_position.z) {
+            p_position_z = _box_position.z;
             p_velocity_z = 0.0f;
-        } else if (p_position_z > _box_dim.z) {
-            p_position_z = _box_dim.z;
+        } else if (p_position_z > _box_position.z + _box_dim.z) {
+            p_position_z = _box_position.z + _box_dim.z;
 
             p_velocity_z = 0.0f;
         }

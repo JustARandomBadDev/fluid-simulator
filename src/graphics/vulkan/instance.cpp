@@ -6,12 +6,12 @@
 
 namespace fluid::graphics {
 
-const std::vector<const char *> validationLayers = {
+const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"};
 
 namespace {
-constexpr const char *kApplicationName = "Fluid Simulator";
-constexpr const char *kEngineName = "Fluid Simulator Vulkan Renderer";
+constexpr const char* kApplicationName = "Fluid Simulator";
+constexpr const char* kEngineName = "Fluid Simulator Vulkan Renderer";
 constexpr uint32_t kVulkanApiVersion = VK_API_VERSION_1_0;
 
 bool checkDebugUtilsExtensionSupport() {
@@ -25,7 +25,7 @@ bool checkDebugUtilsExtensionSupport() {
         availableExtensions.data()
     );
 
-    for (const VkExtensionProperties &extension : availableExtensions) {
+    for (const VkExtensionProperties& extension : availableExtensions) {
         if (std::strcmp(
                 extension.extensionName,
                 VK_EXT_DEBUG_UTILS_EXTENSION_NAME
@@ -39,9 +39,9 @@ bool checkDebugUtilsExtensionSupport() {
 
 VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance,
-    const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-    const VkAllocationCallbacks *pAllocator,
-    VkDebugUtilsMessengerEXT *pDebugMessenger
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDebugUtilsMessengerEXT* pDebugMessenger
 ) {
     auto func = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
         vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT")
@@ -55,7 +55,7 @@ VkResult CreateDebugUtilsMessengerEXT(
 void DestroyDebugUtilsMessengerEXT(
     VkInstance instance,
     VkDebugUtilsMessengerEXT debugMessenger,
-    const VkAllocationCallbacks *pAllocator
+    const VkAllocationCallbacks* pAllocator
 ) {
     auto func = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
         vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT")
@@ -67,7 +67,7 @@ void DestroyDebugUtilsMessengerEXT(
 
 void Instance::createInstance(
     bool p_enable_validation_layers,
-    const std::vector<std::string> &p_required_extensions
+    const std::vector<std::string>& p_required_extensions
 ) {
     _validation_layers_enabled = p_enable_validation_layers;
 
@@ -115,7 +115,7 @@ void Instance::createInstance(
 }
 
 void Instance::createSurface(
-    const std::function<VkResult(VkInstance, VkSurfaceKHR &)> &p_create_surface
+    const std::function<VkResult(VkInstance, VkSurfaceKHR&)>& p_create_surface
 ) {
     if (instance == VK_NULL_HANDLE) {
         throw std::runtime_error(
@@ -156,8 +156,8 @@ void Instance::setupDebugMessenger() {
     }
 }
 
-std::vector<const char *> Instance::getRequiredExtensions(
-    const std::vector<std::string> &p_required_extensions
+std::vector<const char*> Instance::getRequiredExtensions(
+    const std::vector<std::string>& p_required_extensions
 ) const {
     if (p_required_extensions.empty()) {
         throw std::runtime_error(
@@ -166,12 +166,12 @@ std::vector<const char *> Instance::getRequiredExtensions(
         );
     }
 
-    std::vector<const char *> extensions;
+    std::vector<const char*> extensions;
     extensions.reserve(
         p_required_extensions.size() + (_validation_layers_enabled ? 1 : 0)
     );
 
-    for (const std::string &extension : p_required_extensions) {
+    for (const std::string& extension : p_required_extensions) {
         extensions.push_back(extension.c_str());
     }
 
@@ -189,10 +189,10 @@ bool Instance::checkValidationLayerSupport() {
     std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-    for (const char *layerName : validationLayers) {
+    for (const char* layerName : validationLayers) {
         bool layerFound = false;
 
-        for (const auto &layerProperties : availableLayers) {
+        for (const auto& layerProperties : availableLayers) {
             if (std::strcmp(layerName, layerProperties.layerName) == 0) {
                 layerFound = true;
                 break;
@@ -208,7 +208,7 @@ bool Instance::checkValidationLayerSupport() {
 }
 
 void Instance::populateDebugMessengerCreateInfo(
-    VkDebugUtilsMessengerCreateInfoEXT &createInfo
+    VkDebugUtilsMessengerCreateInfoEXT& createInfo
 ) {
     createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -225,8 +225,8 @@ void Instance::populateDebugMessengerCreateInfo(
 VKAPI_ATTR VkBool32 VKAPI_CALL Instance::debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-    void *pUserData
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData
 ) {
     (void)messageSeverity;
     (void)messageType;

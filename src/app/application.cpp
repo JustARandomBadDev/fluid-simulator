@@ -1,10 +1,9 @@
 #include "app/application.hpp"
-#include "backends/cpu/cpu_scalar_solver.hpp"
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <memory>
 #include <span>
 #include <stdexcept>
 #include <utility>
@@ -13,16 +12,16 @@
 #include <GLFW/glfw3.h>
 
 namespace fluid {
-namespace {
 
-constexpr int kInitialWindowWidth = 1280;
-constexpr int kInitialWindowHeight = 720;
-constexpr const char *kWindowTitle = "Fluid Simulator - Vulkan particles";
-
-} // namespace
-
-Application::Application()
-    : _fluid_simulator(std::make_unique<simulation::CpuScalarSolver>()) {}
+Application::Application(ApplicationConfig config)
+    : _config(std::move(config)),
+      _use_cuda_interop(
+          _config.simulation.backend == SimulationBackend::Cuda &&
+          _config.graphics.enableCudaInterop
+      ),
+      _camera(_config.camera.position, 45.0f, 16.0f / 9.0f, 0.1f, 20.0f),
+      _fluid_simulator(_config.simulation),
+      _particle_vertices(_config.simulation.particleCapacity) {}
 
 Application::~Application() {
     cleanup();
@@ -36,8 +35,73 @@ void Application::run(bool smokeTest) {
     cleanup();
 }
 
+std::vector<double> Application::runFrameBenchmark(
+    std::size_t p_warmup_frames,
+    std::size_t p_measured_frames,
+    float p_delta_time
+) {
+    if (p_measured_frames == 0) {
+        throw std::runtime_error(
+            "interop benchmark measured frame count must be greater than 0"
+        );
+    }
+
+    createWindow();
+    initializeGraphics();
+    initializeSimulation();
+
+    std::vector<double> frameTimesMilliseconds;
+    frameTimesMilliseconds.reserve(p_measured_frames);
+
+    const std::size_t frameCount = p_warmup_frames + p_measured_frames;
+    std::size_t completedFrames = 0;
+    while (completedFrames < frameCount) {
+        glfwPollEvents();
+        if (glfwWindowShouldClose(_window) == GLFW_TRUE) {
+            throw std::runtime_error("interop benchmark window was closed");
+        }
+
+        int width = 0;
+        int height = 0;
+        glfwGetFramebufferSize(_window, &width, &height);
+        if (width == 0 || height == 0) {
+            glfwWaitEvents();
+            continue;
+        }
+
+        const auto start = std::chrono::steady_clock::now();
+        if (_use_cuda_interop && !_graphics.prepareCudaInteropFrame()) {
+            continue;
+        }
+
+        update(p_delta_time);
+        _camera.updateProjection(_graphics.getAspectRatio());
+        if (_use_cuda_interop) {
+            _graphics.renderCudaInterop(
+                _camera,
+                _active_particle_count,
+                _cuda_interop_sync.cudaReadyValue,
+                _cuda_interop_sync.vulkanDoneValue
+            );
+        } else {
+            _graphics.render(_camera);
+        }
+        const auto end = std::chrono::steady_clock::now();
+
+        if (completedFrames >= p_warmup_frames) {
+            frameTimesMilliseconds.push_back(
+                std::chrono::duration<double, std::milli>(end - start).count()
+            );
+        }
+        completedFrames++;
+    }
+
+    cleanup();
+    return frameTimesMilliseconds;
+}
+
 void Application::createWindow() {
-    glfwSetErrorCallback([](int, const char *description) {
+    glfwSetErrorCallback([](int, const char* description) {
         (void)description;
     });
 
@@ -51,11 +115,14 @@ void Application::createWindow() {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(
+        GLFW_RESIZABLE,
+        _config.window.resizable ? GLFW_TRUE : GLFW_FALSE
+    );
     _window = glfwCreateWindow(
-        kInitialWindowWidth,
-        kInitialWindowHeight,
-        kWindowTitle,
+        _config.window.width,
+        _config.window.height,
+        _config.window.title,
         nullptr,
         nullptr
     );
@@ -67,7 +134,7 @@ void Application::createWindow() {
 
 void Application::initializeGraphics() {
     uint32_t extensionCount = 0;
-    const char **glfwExtensions =
+    const char** glfwExtensions =
         glfwGetRequiredInstanceExtensions(&extensionCount);
     if (glfwExtensions == nullptr || extensionCount == 0) {
         throw std::runtime_error(
@@ -76,16 +143,25 @@ void Application::initializeGraphics() {
     }
 
     graphics::VulkanHostConfig hostConfig;
-    hostConfig.requiredInstanceExtensions.reserve(extensionCount);
     for (uint32_t index = 0; index < extensionCount; ++index) {
-        hostConfig.requiredInstanceExtensions.emplace_back(
-            glfwExtensions[index]
+        hostConfig.requiredInstanceExtensions.push_back(glfwExtensions[index]);
+    }
+
+    if (_use_cuda_interop) {
+        hostConfig.requiredInstanceExtensions.push_back(
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
+        );
+        hostConfig.requiredInstanceExtensions.push_back(
+            VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME
+        );
+        hostConfig.requiredInstanceExtensions.push_back(
+            VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME
         );
     }
 
     hostConfig.createSurface = [this](
                                    VkInstance instance,
-                                   VkSurfaceKHR &surface
+                                   VkSurfaceKHR& surface
                                ) {
         return glfwCreateWindowSurface(instance, _window, nullptr, &surface);
     };
@@ -97,27 +173,48 @@ void Application::initializeGraphics() {
             static_cast<uint32_t>(height)};
     };
 
-    graphics::GraphicsRuntimeConfig config;
-    config.vulkanHost = std::move(hostConfig);
+    _config.graphics.vulkanHost = std::move(hostConfig);
 
-    config.graphicsResources.particleVertexShader =
+    _config.graphics.graphicsResources.particleVertexShader =
         std::filesystem::path(FLUID_SHADER_DIR) / "particle.vert.spv";
-    config.graphicsResources.particleFragmentShader =
+    _config.graphics.graphicsResources.particleFragmentShader =
         std::filesystem::path(FLUID_SHADER_DIR) / "particle.frag.spv";
 
 #ifdef FLUID_ENABLE_VALIDATION
-    config.enableValidationLayers = true;
+    _config.graphics.enableValidationLayers = true;
 #else
-    config.enableValidationLayers = false;
+    _config.graphics.enableValidationLayers = false;
 #endif
 
-    config.particleCapacity = simulation::ParticleSystem::MAX_PARTICLES;
+    _config.graphics.particleCapacity = _config.simulation.particleCapacity;
+    _config.graphics.enableCudaInterop = _use_cuda_interop;
 
-    _graphics.init(config);
+    _graphics.init(_config.graphics);
 }
 
 void Application::initializeSimulation() {
-    _fluid_simulator.init({2.f, 20.f, 2.f});
+    _fluid_simulator.init(_config.simulation);
+
+    if (!_use_cuda_interop) return;
+
+    const std::size_t slotCount = _graphics.getCudaInteropSlotCount();
+    _fluid_simulator.configureCudaInterop(slotCount);
+
+    for (std::size_t slot = 0; slot < slotCount; slot++) {
+        const uint32_t frameIndex = static_cast<uint32_t>(slot);
+        const graphics::CudaInteropBufferExport buffer =
+            _graphics.exportCudaInteropBuffer(frameIndex);
+        _fluid_simulator.importCudaInteropBuffer(
+            buffer.fd,
+            buffer.allocationSize,
+            buffer.bufferSize,
+            slot
+        );
+        _fluid_simulator.importCudaInteropSemaphore(
+            _graphics.exportCudaInteropSemaphoreFd(frameIndex),
+            slot
+        );
+    }
 }
 
 void Application::mainLoop(bool smokeTest) {
@@ -136,12 +233,25 @@ void Application::mainLoop(bool smokeTest) {
             continue;
         }
 
+        if (_use_cuda_interop && !_graphics.prepareCudaInteropFrame()) {
+            continue;
+        }
+
         _timer.update();
 
         update(_timer.getDeltaTime());
 
         _camera.updateProjection(_graphics.getAspectRatio());
-        _graphics.render(_camera);
+        if (_use_cuda_interop) {
+            _graphics.renderCudaInterop(
+                _camera,
+                _active_particle_count,
+                _cuda_interop_sync.cudaReadyValue,
+                _cuda_interop_sync.vulkanDoneValue
+            );
+        } else {
+            _graphics.render(_camera);
+        }
 
         if (smokeTest) {
             ++renderedFrames;
@@ -155,18 +265,27 @@ void Application::mainLoop(bool smokeTest) {
 }
 
 void Application::update(float dt) {
-    const auto &particles = _fluid_simulator.update(dt);
+    const auto& particles = _fluid_simulator.update(dt);
+    _active_particle_count = static_cast<uint32_t>(particles.count);
+
+    if (_use_cuda_interop) {
+        _cuda_interop_sync =
+            _fluid_simulator.writeCudaRenderBuffer(_graphics.getCurrentFrame());
+        return;
+    }
 
     for (std::size_t i = 0; i < particles.count; i++) {
-        _particle_vertices[i].position = {particles.position_x[i],
-            particles.position_y[i],
-            particles.position_z[i]};
+        _particle_vertices[i].x = particles.position_x[i];
+        _particle_vertices[i].y = particles.position_y[i];
+        _particle_vertices[i].z = particles.position_z[i];
     }
 
     _graphics.updateParticles({_particle_vertices.data(), particles.count});
 }
 
 void Application::cleanup() {
+    _graphics.waitIdle();
+    _fluid_simulator.cleanupCudaInterop();
     _graphics.cleanup();
 
     if (_window != nullptr) {

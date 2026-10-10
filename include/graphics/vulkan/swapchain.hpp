@@ -21,41 +21,41 @@ class Swapchain {
   public:
     void createSwapChain(
         VkExtent2D p_framebuffer_extent,
-        Instance &p_instance,
-        Device &p_device,
+        Instance& p_instance,
+        Device& p_device,
         uint32_t p_frames_in_flight
     );
-    void createImageViews(Device &p_device);
+    void createImageViews(Device& p_device);
     void
-    createFramebuffers(GraphicPipeline &p_graphic_pipeline, Device &p_device);
-    void cleanupFramebuffers(Device &p_device);
-    void cleanup(Device &p_device);
+    createFramebuffers(GraphicPipeline& p_graphic_pipeline, Device& p_device);
+    void cleanupFramebuffers(Device& p_device);
+    void cleanup(Device& p_device);
 
     SwapChainSupportDetails
-    querySwapChainSupport(VkPhysicalDevice pdevice, Instance &p_instance) const;
+    querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) const;
     VkImageView createImageView(
         VkImage image,
         VkFormat format,
         VkImageAspectFlags aspectFlags,
-        Device &p_device
+        Device& p_device
     ) const;
 
-    const VkSwapchainKHR &getSwapChain() const {
+    const VkSwapchainKHR& getSwapChain() const {
         return swapChain;
     }
-    const VkFormat &getSwapChainImageFormat() const {
+    const VkFormat& getSwapChainImageFormat() const {
         return swapChainImageFormat;
     }
-    const VkExtent2D &getSwapChainExtent() const {
+    const VkExtent2D& getSwapChainExtent() const {
         return swapChainExtent;
     }
-    const std::vector<VkImageView> &getSwapChainImageViews() const {
+    const std::vector<VkImageView>& getSwapChainImageViews() const {
         return swapChainImageViews;
     }
-    const std::vector<VkFramebuffer> &getSwapChainFramebuffers() const {
+    const std::vector<VkFramebuffer>& getSwapChainFramebuffers() const {
         return swapChainFramebuffers;
     }
-    const VkFramebuffer &getFramebuffers(uint32_t imageIndex) const {
+    const VkFramebuffer& getFramebuffers(uint32_t imageIndex) const {
         return swapChainFramebuffers[imageIndex];
     }
 
@@ -78,17 +78,17 @@ class Swapchain {
     uint32_t imageCount = 0;
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(
-        const std::vector<VkSurfaceFormatKHR> &availableFormats
+        const std::vector<VkSurfaceFormatKHR>& availableFormats
     );
     VkPresentModeKHR chooseSwapPresentMode(
-        const std::vector<VkPresentModeKHR> &availablePresentModes
+        const std::vector<VkPresentModeKHR>& availablePresentModes
     );
     VkExtent2D chooseSwapExtent(
         VkExtent2D p_framebuffer_extent,
-        const VkSurfaceCapabilitiesKHR &capabilities
+        const VkSurfaceCapabilitiesKHR& capabilities
     );
     VkCompositeAlphaFlagBitsKHR
-    chooseCompositeAlpha(const VkSurfaceCapabilitiesKHR &capabilities);
+    chooseCompositeAlpha(const VkSurfaceCapabilitiesKHR& capabilities);
 };
 
 } // namespace fluid::graphics

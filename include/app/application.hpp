@@ -1,8 +1,11 @@
 #ifndef FLUID_APP_APPLICATION_HPP
 #define FLUID_APP_APPLICATION_HPP
 
-#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 
+#include "config.hpp"
 #include "core/camera.hpp"
 #include "core/timer.hpp"
 #include "graphics/vulkan/graphics_runtime.hpp"
@@ -15,25 +18,31 @@ namespace fluid {
 
 class Application {
   public:
-    Application();
-    Application(const Application &) = delete;
-    Application &operator=(const Application &) = delete;
+    explicit Application(ApplicationConfig config = {});
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
 
     ~Application();
 
     void run(bool smokeTest = false);
+    std::vector<double> runFrameBenchmark(
+        std::size_t p_warmup_frames,
+        std::size_t p_measured_frames,
+        float p_delta_time
+    );
 
   private:
-    GLFWwindow *_window = nullptr;
+    ApplicationConfig _config;
+    bool _use_cuda_interop = false;
+    GLFWwindow* _window = nullptr;
     graphics::GraphicsRuntime _graphics;
-    core::Camera _camera{{1.f, 1.f, 5.f}, 45.0f, 16.0f / 9.0f, 0.1f, 20.0f};
+    core::Camera _camera;
     bool _glfw_initialized = false;
 
     simulation::FluidSimulator _fluid_simulator;
-    std::array<
-        graphics::ParticleVertex,
-        simulation::ParticleSystem::MAX_PARTICLES>
-        _particle_vertices{};
+    std::vector<graphics::ParticleVertex> _particle_vertices;
+    simulation::CudaInteropSyncValues _cuda_interop_sync;
+    uint32_t _active_particle_count = 0;
 
     core::Timer _timer;
 

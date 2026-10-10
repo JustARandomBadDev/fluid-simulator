@@ -4,13 +4,14 @@
 #include <array>
 #include <cstddef>
 
-#include <glm/vec3.hpp>
 #include <vulkan/vulkan.h>
 
 namespace fluid::graphics {
 
 struct ParticleVertex {
-    glm::vec3 position;
+    float x;
+    float y;
+    float z;
 
     static VkVertexInputBindingDescription getBindingDescription() {
         VkVertexInputBindingDescription description{};
@@ -26,7 +27,7 @@ struct ParticleVertex {
         descriptions[0].binding = 0;
         descriptions[0].location = 0;
         descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        descriptions[0].offset = offsetof(ParticleVertex, position);
+        descriptions[0].offset = offsetof(ParticleVertex, x);
         return descriptions;
     }
 };

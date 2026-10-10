@@ -8,7 +8,7 @@
 
 namespace fluid::graphics {
 
-void Renderer::createCommandPool(Device &p_device, Instance &p_instance) {
+void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
     QueueFamilyIndices queueFamilyIndices =
         p_device.findQueueFamilies(p_device.getPhysicalDevice(), p_instance);
 
@@ -30,7 +30,7 @@ void Renderer::createCommandPool(Device &p_device, Instance &p_instance) {
     }
 }
 
-void Renderer::createCommandBuffers(Device &p_device, uint32_t p_image_count) {
+void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
     if (!commandBuffers.empty()) {
         vkFreeCommandBuffers(
             p_device.getDevice(),
@@ -84,7 +84,7 @@ void Renderer::createCommandBuffers(Device &p_device, uint32_t p_image_count) {
     }
 }
 
-void Renderer::cleanupSyncObjects(Device &p_device) {
+void Renderer::cleanupSyncObjects(Device& p_device) {
     if (p_device.getDevice() == VK_NULL_HANDLE) return;
 
     for (VkSemaphore semaphore : imageAvailableSemaphores) {
@@ -110,7 +110,7 @@ void Renderer::cleanupSyncObjects(Device &p_device) {
 }
 
 void Renderer::createSyncObjects(
-    Device &p_device,
+    Device& p_device,
     uint32_t p_frames_in_flight,
     uint32_t p_image_count
 ) {
@@ -173,10 +173,10 @@ void Renderer::createSyncObjects(
 }
 
 void Renderer::copyBuffer(
-    const VulkanBuffer &p_source,
-    const VulkanBuffer &p_destination,
+    const VulkanBuffer& p_source,
+    const VulkanBuffer& p_destination,
     VkDeviceSize p_size,
-    Device &p_device
+    Device& p_device
 ) {
     if (copyCommandBuffer == VK_NULL_HANDLE) {
         throw std::runtime_error(
@@ -238,7 +238,7 @@ void Renderer::copyBuffer(
     }
 }
 
-void Renderer::cleanupFrameResources(Device &p_device) {
+void Renderer::cleanupFrameResources(Device& p_device) {
     cleanupSyncObjects(p_device);
 
     if (!commandBuffers.empty() && commandPool != VK_NULL_HANDLE &&
@@ -257,7 +257,7 @@ void Renderer::cleanupFrameResources(Device &p_device) {
     currentFrame = 0;
 }
 
-void Renderer::cleanup(Device &p_device) {
+void Renderer::cleanup(Device& p_device) {
     cleanupFrameResources(p_device);
 
     if (commandPool != VK_NULL_HANDLE &&

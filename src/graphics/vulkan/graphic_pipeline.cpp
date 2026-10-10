@@ -11,8 +11,8 @@
 namespace fluid::graphics {
 
 void GraphicPipeline::createRenderPass(
-    Swapchain &p_swapchain,
-    Device &p_device
+    Swapchain& p_swapchain,
+    Device& p_device
 ) {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = p_swapchain.getSwapChainImageFormat();
@@ -87,9 +87,9 @@ void GraphicPipeline::createRenderPass(
 }
 
 void GraphicPipeline::createGraphicsPipeline(
-    const std::filesystem::path &vertex_shader_path,
-    const std::filesystem::path &fragment_shader_path,
-    Device &p_device
+    const std::filesystem::path& vertex_shader_path,
+    const std::filesystem::path& fragment_shader_path,
+    Device& p_device
 ) {
     auto vertShaderCode = readFile(vertex_shader_path);
     auto fragShaderCode = readFile(fragment_shader_path);
@@ -266,7 +266,7 @@ void GraphicPipeline::createGraphicsPipeline(
     vkDestroyShaderModule(p_device.getDevice(), vertShaderModule, nullptr);
 }
 
-void GraphicPipeline::cleanup(Device &p_device) {
+void GraphicPipeline::cleanup(Device& p_device) {
     if (p_device.getDevice() == VK_NULL_HANDLE) return;
 
     if (particlePipeline != VK_NULL_HANDLE) {
@@ -288,8 +288,8 @@ void GraphicPipeline::cleanup(Device &p_device) {
 }
 
 VkShaderModule GraphicPipeline::createShaderModule(
-    const std::vector<char> &code,
-    Device &p_device
+    const std::vector<char>& code,
+    Device& p_device
 ) {
     if (code.empty() || code.size() % sizeof(uint32_t) != 0) {
         throw std::runtime_error(
@@ -301,7 +301,7 @@ VkShaderModule GraphicPipeline::createShaderModule(
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule = VK_NULL_HANDLE;
     if (vkCreateShaderModule(
@@ -320,7 +320,7 @@ VkShaderModule GraphicPipeline::createShaderModule(
 }
 
 std::vector<char>
-GraphicPipeline::readFile(const std::filesystem::path &filename) {
+GraphicPipeline::readFile(const std::filesystem::path& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {

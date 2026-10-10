@@ -11,31 +11,31 @@ class VulkanBuffer {
   public:
     VulkanBuffer() = default;
     ~VulkanBuffer();
-    VulkanBuffer(const VulkanBuffer &) = delete;
-    VulkanBuffer &operator=(const VulkanBuffer &) = delete;
-    VulkanBuffer(VulkanBuffer &&other) noexcept;
-    VulkanBuffer &operator=(VulkanBuffer &&other) noexcept;
+    VulkanBuffer(const VulkanBuffer&) = delete;
+    VulkanBuffer& operator=(const VulkanBuffer&) = delete;
+    VulkanBuffer(VulkanBuffer&& other) noexcept;
+    VulkanBuffer& operator=(VulkanBuffer&& other) noexcept;
 
     void createBuffer(
         VkDeviceSize psize,
         VkBufferUsageFlags usage,
         VkMemoryPropertyFlags properties,
-        Device &p_device
+        Device& p_device
     );
-    void *map(VkDeviceSize offset = 0, VkDeviceSize mappedSize = VK_WHOLE_SIZE);
+    void* map(VkDeviceSize offset = 0, VkDeviceSize mappedSize = VK_WHOLE_SIZE);
     void unmap();
     void cleanup();
 
-    VkBuffer &getBuffer() {
+    VkBuffer& getBuffer() {
         return buffer;
     }
-    const VkBuffer &getBuffer() const {
+    const VkBuffer& getBuffer() const {
         return buffer;
     }
-    VkDeviceMemory &getBufferMemory() {
+    VkDeviceMemory& getBufferMemory() {
         return bufferMemory;
     }
-    const VkDeviceMemory &getBufferMemory() const {
+    const VkDeviceMemory& getBufferMemory() const {
         return bufferMemory;
     }
     VkDeviceSize getSize() const {
@@ -54,8 +54,8 @@ class VulkanBuffer {
     VkDeviceSize size = 0;
     VkBufferUsageFlags usageFlags = 0;
     VkMemoryPropertyFlags memoryProperties = 0;
-    Device *_device = nullptr;
-    void *_mapped = nullptr;
+    Device* _device = nullptr;
+    void* _mapped = nullptr;
 };
 
 } // namespace fluid::graphics

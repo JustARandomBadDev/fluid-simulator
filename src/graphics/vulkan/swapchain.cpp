@@ -17,8 +17,8 @@ constexpr VkPresentModeKHR kFallbackPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 
 void Swapchain::createSwapChain(
     VkExtent2D p_framebuffer_extent,
-    Instance &p_instance,
-    Device &p_device,
+    Instance& p_instance,
+    Device& p_device,
     uint32_t p_frames_in_flight
 ) {
     SwapChainSupportDetails swapChainSupport =
@@ -108,7 +108,7 @@ void Swapchain::createSwapChain(
     swapChainExtent = extent;
 }
 
-void Swapchain::createImageViews(Device &p_device) {
+void Swapchain::createImageViews(Device& p_device) {
     swapChainImageViews.resize(swapChainImages.size());
 
     for (size_t i = 0; i < swapChainImages.size(); i++) {
@@ -122,8 +122,8 @@ void Swapchain::createImageViews(Device &p_device) {
 }
 
 void Swapchain::createFramebuffers(
-    GraphicPipeline &p_graphic_pipeline,
-    Device &p_device
+    GraphicPipeline& p_graphic_pipeline,
+    Device& p_device
 ) {
     swapChainFramebuffers.clear();
     swapChainFramebuffers.reserve(swapChainImageViews.size());
@@ -159,7 +159,7 @@ void Swapchain::createFramebuffers(
     }
 }
 
-void Swapchain::cleanupFramebuffers(Device &p_device) {
+void Swapchain::cleanupFramebuffers(Device& p_device) {
     if (p_device.getDevice() == VK_NULL_HANDLE) return;
 
     for (VkFramebuffer framebuffer : swapChainFramebuffers) {
@@ -171,7 +171,7 @@ void Swapchain::cleanupFramebuffers(Device &p_device) {
     swapChainFramebuffers.clear();
 }
 
-void Swapchain::cleanup(Device &p_device) {
+void Swapchain::cleanup(Device& p_device) {
     cleanupFramebuffers(p_device);
 
     if (p_device.getDevice() != VK_NULL_HANDLE) {
@@ -198,7 +198,7 @@ VkImageView Swapchain::createImageView(
     VkImage image,
     VkFormat format,
     VkImageAspectFlags aspectFlags,
-    Device &p_device
+    Device& p_device
 ) const {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -228,7 +228,7 @@ VkImageView Swapchain::createImageView(
 
 SwapChainSupportDetails Swapchain::querySwapChainSupport(
     VkPhysicalDevice pdevice,
-    Instance &p_instance
+    Instance& p_instance
 ) const {
     SwapChainSupportDetails details;
 
@@ -278,9 +278,9 @@ SwapChainSupportDetails Swapchain::querySwapChainSupport(
 }
 
 VkSurfaceFormatKHR Swapchain::chooseSwapSurfaceFormat(
-    const std::vector<VkSurfaceFormatKHR> &availableFormats
+    const std::vector<VkSurfaceFormatKHR>& availableFormats
 ) {
-    for (const auto &availableFormat : availableFormats) {
+    for (const auto& availableFormat : availableFormats) {
         if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
             availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
             return availableFormat;
@@ -291,9 +291,9 @@ VkSurfaceFormatKHR Swapchain::chooseSwapSurfaceFormat(
 }
 
 VkPresentModeKHR Swapchain::chooseSwapPresentMode(
-    const std::vector<VkPresentModeKHR> &availablePresentModes
+    const std::vector<VkPresentModeKHR>& availablePresentModes
 ) {
-    for (const auto &availablePresentMode : availablePresentModes) {
+    for (const auto& availablePresentMode : availablePresentModes) {
         if (availablePresentMode == kPreferredPresentMode) {
             return availablePresentMode;
         }
@@ -304,7 +304,7 @@ VkPresentModeKHR Swapchain::chooseSwapPresentMode(
 
 VkExtent2D Swapchain::chooseSwapExtent(
     VkExtent2D p_framebuffer_extent,
-    const VkSurfaceCapabilitiesKHR &capabilities
+    const VkSurfaceCapabilitiesKHR& capabilities
 ) {
     if (capabilities.currentExtent.width !=
         std::numeric_limits<uint32_t>::max()) {
@@ -327,7 +327,7 @@ VkExtent2D Swapchain::chooseSwapExtent(
 }
 
 VkCompositeAlphaFlagBitsKHR
-Swapchain::chooseCompositeAlpha(const VkSurfaceCapabilitiesKHR &capabilities) {
+Swapchain::chooseCompositeAlpha(const VkSurfaceCapabilitiesKHR& capabilities) {
     constexpr std::array<VkCompositeAlphaFlagBitsKHR, 4> candidates = {
         VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
         VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
