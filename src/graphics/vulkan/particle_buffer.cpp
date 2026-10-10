@@ -29,7 +29,7 @@ void ParticleBuffer::initialize(
     }
 
     cleanup();
-    
+
     _counts.resize(p_frames_in_flight, 0);
 
     if (p_enable_cuda_interop) {
@@ -53,7 +53,9 @@ void ParticleBuffer::initialize(
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                     _device
                 );
-                _interop_semaphores[frameIndex].createExternalTimelineSemaphore(_device.getDevice());
+                _interop_semaphores[frameIndex].createExternalTimelineSemaphore(
+                    _device.getDevice()
+                );
             } else {
                 _buffers[frameIndex].createBuffer(
                     bufferSize,
@@ -65,7 +67,8 @@ void ParticleBuffer::initialize(
                 _mapped_buffers[frameIndex] = _buffers[frameIndex].map();
                 if (_mapped_buffers[frameIndex] == nullptr) {
                     throw std::runtime_error(
-                        "ParticleBuffer::initialize() -> failed to map particle "
+                        "ParticleBuffer::initialize() -> failed to map "
+                        "particle "
                         "buffer"
                     );
                 }

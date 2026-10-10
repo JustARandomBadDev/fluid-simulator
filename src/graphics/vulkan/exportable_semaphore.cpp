@@ -5,18 +5,14 @@
 
 namespace fluid::graphics {
 
-ExportableSemaphore::ExportableSemaphore(
-    ExportableSemaphore&& p_other
-) noexcept
-    : _device(p_other._device),
-      _semaphore(p_other._semaphore) {
+ExportableSemaphore::ExportableSemaphore(ExportableSemaphore&& p_other) noexcept
+    : _device(p_other._device), _semaphore(p_other._semaphore) {
     p_other._device = VK_NULL_HANDLE;
     p_other._semaphore = VK_NULL_HANDLE;
 }
 
-ExportableSemaphore& ExportableSemaphore::operator=(
-    ExportableSemaphore&& p_other
-) noexcept {
+ExportableSemaphore&
+ExportableSemaphore::operator=(ExportableSemaphore&& p_other) noexcept {
     if (this != &p_other) {
         cleanup();
 
@@ -34,9 +30,10 @@ ExportableSemaphore::~ExportableSemaphore() {
     cleanup();
 }
 
-VkSemaphore ExportableSemaphore::createExternalTimelineSemaphore(VkDevice p_device) {
+VkSemaphore
+ExportableSemaphore::createExternalTimelineSemaphore(VkDevice p_device) {
     cleanup();
-    
+
     _device = p_device;
 
     VkExportSemaphoreCreateInfo export_info{};

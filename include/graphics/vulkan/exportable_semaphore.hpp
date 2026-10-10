@@ -6,7 +6,7 @@
 namespace fluid::graphics {
 
 class ExportableSemaphore {
-public:
+  public:
     ExportableSemaphore() = default;
     ~ExportableSemaphore();
 
@@ -24,7 +24,7 @@ public:
         return _semaphore;
     }
 
-private:
+  private:
     VkDevice _device = VK_NULL_HANDLE;
     VkSemaphore _semaphore = VK_NULL_HANDLE;
 };

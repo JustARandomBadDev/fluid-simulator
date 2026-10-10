@@ -5,10 +5,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "backends/cuda/cuda_solver.hpp"
 #include "config.hpp"
 #include "simulation/particle_system.hpp"
 #include "simulation/solver.hpp"
-#include "backends/cuda/cuda_solver.hpp"
 
 namespace fluid::simulation {
 

@@ -28,13 +28,13 @@ void printHelp() {
                  "Usage:\n"
                  "  ./fluid-simulator [options]\n\n"
                  "Options:\n"
-                 "  -h, --help         Show this help message\n"
-                 "  --backend cpu      Use the CPU scalar backend\n"
-                 "  --backend cuda     Use the CUDA backend (default)\n"
-                 "  --benchmark        Run the headless simulation benchmark\n"
+                 "  -h, --help          Show this help message\n"
+                 "  --backend cpu       Use the CPU scalar backend\n"
+                 "  --backend cuda      Use the CUDA backend (default)\n"
+                 "  --benchmark         Run the headless simulation benchmark\n"
                  "  --benchmark-interop Compare CUDA rendering paths\n"
-                 "  --interop          Enable Vulkan/CUDA interoperability\n"
-                 "  --smoke-test       Run the existing graphics smoke test\n";
+                 "  --interop           Enable Vulkan/CUDA interoperability\n"
+                 "  --smoke-test        Run the existing graphics smoke test\n";
 }
 
 fluid::SimulationBackend parseBackend(std::string_view value) {
