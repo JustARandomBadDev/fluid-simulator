@@ -17,6 +17,7 @@ struct CommandLineOptions {
     bool help = false;
     bool benchmark = false;
     bool smokeTest = false;
+    bool enableInterop = false;
     fluid::SimulationBackend backend = fluid::SimulationBackend::Cuda;
 };
 
@@ -29,6 +30,7 @@ void printHelp() {
                  "  --backend cpu      Use the CPU scalar backend\n"
                  "  --backend cuda     Use the CUDA backend (default)\n"
                  "  --benchmark        Run the headless simulation benchmark\n"
+                 "  --interop          Enable Vulkan/CUDA interoperability\n"
                  "  --smoke-test       Run the existing graphics smoke test\n";
 }
 
@@ -53,6 +55,8 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
             options.benchmark = true;
         } else if (argument == "--smoke-test") {
             options.smokeTest = true;
+        } else if (argument == "--interop") {
+            options.enableInterop = true;
         } else if (argument == "--backend") {
             if (index + 1 >= argc) {
                 throw std::runtime_error("--backend requires cpu or cuda");
@@ -111,6 +115,7 @@ int main(int argc, char** argv) {
 
         fluid::ApplicationConfig config;
         config.simulation.backend = options.backend;
+        config.graphics.enableCudaInterop = options.enableInterop;
 
         fluid::Application application(std::move(config));
         application.run(options.smokeTest);
