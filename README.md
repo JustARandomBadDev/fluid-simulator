@@ -12,6 +12,27 @@ the particles as Vulkan point sprites in a GLFW window.
 
 ## Demo
 
+### CUDA + Vulkan/CUDA Interop — 100,000 particles
+
+Current implementation using the CUDA SPH backend, GPU Uniform Grid, and Vulkan/CUDA external-memory interoperability.
+
+- **100,000 particles**
+- CUDA SPH simulation
+- CUDA Uniform Grid neighbor search
+- Vulkan/CUDA interoperability
+
+<!-- add link online -->
+
+### CPU + Uniform Grid — 20,000 particles
+
+Earlier implementation using the OpenMP CPU backend and CPU Uniform Grid.
+
+- **20,000 particles**
+- CPU SPH simulation
+- OpenMP parallelization
+- CPU Uniform Grid neighbor search
+- Host-side Vulkan particle upload
+
 https://github.com/user-attachments/assets/5d53c393-3607-4f4b-9a94-7fd8b020c329
 
 ## Current features
