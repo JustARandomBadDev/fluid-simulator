@@ -1,12 +1,13 @@
 #include "simulation/fluid_simulator.hpp"
 
+#include <cstddef>
 #include <memory>
 #include <stdexcept>
 
 #include "backends/cpu/cpu_scalar_solver.hpp"
-#include "backends/cuda/cuda_solver.hpp"
 
 namespace fluid::simulation {
+
 namespace {
 
 std::unique_ptr<Solver> createSolver(const SimulationConfig& config) {
@@ -40,6 +41,52 @@ const ParticleData& FluidSimulator::update(float p_dt) {
     _solver->step(_particle_system.particles(), p_dt);
 
     return _particle_system.particles();
+}
+
+void FluidSimulator::configureCudaInterop(std::size_t p_slot_count) {
+    getCudaSolver()->configureInterop(p_slot_count);
+}
+
+void FluidSimulator::importCudaInteropBuffer(
+    int p_fd,
+    std::size_t p_allocation_size,
+    std::size_t p_buffer_size,
+    std::size_t p_frame
+) {
+    getCudaSolver()
+        ->importRenderBuffer(p_fd, p_allocation_size, p_buffer_size, p_frame);
+}
+
+void FluidSimulator::importCudaInteropSemaphore(int p_fd, std::size_t p_frame) {
+    getCudaSolver()->importCudaSemaphore(p_fd, p_frame);
+}
+
+CudaInteropSyncValues
+FluidSimulator::writeCudaRenderBuffer(std::size_t p_interop_slot) {
+    CudaInteropSyncValues values;
+    getCudaSolver()->writeRenderBuffer(
+        p_interop_slot,
+        values.cudaReadyValue,
+        values.vulkanDoneValue
+    );
+    return values;
+}
+
+CudaSolver* FluidSimulator::getCudaSolver() {
+    auto* cudaSolver = dynamic_cast<CudaSolver*>(_solver.get());
+    if (cudaSolver == nullptr) {
+        throw std::runtime_error(
+            "FluidSimulator::writeCudaRenderBuffer() -> CUDA backend is not "
+            "active"
+        );
+    }
+
+    return cudaSolver;
+}
+
+void FluidSimulator::cleanupCudaInterop() {
+    auto* cudaSolver = dynamic_cast<CudaSolver*>(_solver.get());
+    if (cudaSolver != nullptr) cudaSolver->cleanupInterop();
 }
 
 } // namespace fluid::simulation

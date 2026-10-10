@@ -1,15 +1,17 @@
 #ifndef FLUID_GRAPHICS_VULKAN_GRAPHICS_RUNTIME_HPP
 #define FLUID_GRAPHICS_VULKAN_GRAPHICS_RUNTIME_HPP
 
+#include <cstddef>
+#include <cstdint>
 #include <span>
 
 #include <vulkan/vulkan.h>
 
+#include "config.hpp"
 #include "graphics/vulkan/command_recorder.hpp"
 #include "graphics/vulkan/device.hpp"
 #include "graphics/vulkan/frame_renderer.hpp"
 #include "graphics/vulkan/graphic_pipeline.hpp"
-#include "graphics/vulkan/graphics_config.hpp"
 #include "graphics/vulkan/instance.hpp"
 #include "graphics/vulkan/particle_buffer.hpp"
 #include "graphics/vulkan/renderer.hpp"
@@ -33,9 +35,22 @@ class GraphicsRuntime {
     void init(const GraphicsRuntimeConfig& config);
     void updateParticles(std::span<const ParticleVertex> p_particles);
     void render(const core::Camera& camera);
+    bool prepareCudaInteropFrame();
+    void renderCudaInterop(
+        const core::Camera& p_camera,
+        uint32_t p_particle_count,
+        uint64_t p_cuda_ready_value,
+        uint64_t p_vulkan_done_value
+    );
+    void waitIdle();
     void cleanup();
 
     float getAspectRatio() const;
+    uint32_t getCurrentFrame() const;
+    std::size_t getCudaInteropSlotCount() const;
+    CudaInteropBufferExport
+    exportCudaInteropBuffer(uint32_t p_frame_index) const;
+    int exportCudaInteropSemaphoreFd(uint32_t p_frame_index) const;
 
   private:
     Instance instance;
@@ -52,6 +67,7 @@ class GraphicsRuntime {
     VulkanHostConfig _host_config;
     bool _swapchain_needs_recreate = false;
     bool _initialized = false;
+    bool _cuda_interop_enabled = false;
 
     bool recreateSwapchain();
     VkExtent2D getFramebufferExtent() const;

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <vulkan/vulkan.h>
 
-#include "graphics/vulkan/graphics_config.hpp"
+#include "config.hpp"
 
 namespace fluid::graphics {
 
@@ -29,6 +29,7 @@ class GraphicsRuntimeLifecycle {
         const GraphicsResourceConfig& p_resources,
         uint32_t p_frames_in_flight,
         bool p_enable_validation_layers,
+        bool p_enable_cuda_interop,
         VkExtent2D p_framebuffer_extent
     );
 

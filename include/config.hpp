@@ -2,12 +2,48 @@
 #define FLUID_CONFIG_HPP
 
 #include <cstddef>
+#include <cstdint>
 
+#include <filesystem>
+#include <functional>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+#include <string>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 #include "simulation/sph_parameters.hpp"
 
 namespace fluid {
+
+namespace graphics {
+
+struct VulkanHostConfig {
+    std::vector<std::string> requiredInstanceExtensions;
+    std::function<VkResult(VkInstance, VkSurfaceKHR&)> createSurface;
+    std::function<VkExtent2D()> getFramebufferExtent;
+};
+
+struct GraphicsResourceConfig {
+    std::filesystem::path particleVertexShader;
+    std::filesystem::path particleFragmentShader;
+};
+
+struct GraphicsRuntimeConfig {
+    VulkanHostConfig vulkanHost;
+    glm::vec4 clearColor = {0.015f, 0.025f, 0.055f, 1.0f};
+
+    std::size_t particleCapacity{};
+
+    uint32_t framesInFlight = 2;
+
+    bool enableValidationLayers = true;
+    bool enableCudaInterop = true;
+
+    GraphicsResourceConfig graphicsResources;
+};
+
+} // namespace graphics
 
 enum class SimulationBackend { CpuScalar, Cuda };
 
@@ -59,6 +95,7 @@ struct ApplicationConfig {
     WindowConfig window;
     CameraConfig camera;
     SimulationConfig simulation;
+    graphics::GraphicsRuntimeConfig graphics;
 };
 
 } // namespace fluid

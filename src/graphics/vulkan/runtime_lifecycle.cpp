@@ -77,6 +77,7 @@ void GraphicsRuntimeLifecycle::initialize(
     const GraphicsResourceConfig& p_resources,
     uint32_t p_frames_in_flight,
     bool p_enable_validation_layers,
+    bool p_enable_cuda_interop,
     VkExtent2D p_framebuffer_extent
 ) {
     _resources = p_resources;
@@ -90,7 +91,7 @@ void GraphicsRuntimeLifecycle::initialize(
     _instance.createSurface(p_host_config.createSurface);
 
     _device.pickPhysicalDevice(_instance, _swapchain);
-    _device.createLogicalDevice(_instance);
+    _device.createLogicalDevice(_instance, p_enable_cuda_interop);
 
     createSwapchainResources(p_framebuffer_extent, p_frames_in_flight);
     createPipelineResources();

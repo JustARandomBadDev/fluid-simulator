@@ -16,8 +16,6 @@ class CommandRecorder;
 class Device;
 class Renderer;
 class Swapchain;
-class VulkanBuffer;
-
 enum class FrameRenderStatus { Rendered, NeedsRecreate };
 
 class FrameRenderer {
@@ -32,10 +30,14 @@ class FrameRenderer {
     FrameRenderStatus render(
         const core::Camera& camera,
         const glm::vec4& p_clear_color,
-        const VulkanBuffer& p_particle_vertex_buffer,
-        uint32_t p_vertex_count
+        VkBuffer p_particle_vertex_buffer,
+        uint32_t p_vertex_count,
+        VkSemaphore p_cuda_interop_semaphore = VK_NULL_HANDLE,
+        uint64_t p_cuda_ready_value = 0,
+        uint64_t p_vulkan_done_value = 0
     );
 
+    bool prepareFrame();
     void waitForCurrentFrame();
 
   private:
@@ -44,8 +46,17 @@ class FrameRenderer {
     Swapchain& _swapchain;
     CommandRecorder& _command_recorder;
 
+    uint32_t _prepared_image_index = 0;
+    VkResult _prepared_acquire_result = VK_SUCCESS;
+    bool _frame_prepared = false;
+
     VkResult acquireFrameImage(uint32_t& p_image_index);
-    void submitFrame(uint32_t p_image_index);
+    void submitFrame(
+        uint32_t p_image_index,
+        VkSemaphore p_cuda_interop_semaphore,
+        uint64_t p_cuda_ready_value,
+        uint64_t p_vulkan_done_value
+    );
     VkResult presentFrame(uint32_t p_image_index);
 };
 

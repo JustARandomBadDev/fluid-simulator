@@ -6,7 +6,6 @@
 #include "graphics/vulkan/graphic_pipeline.hpp"
 #include "graphics/vulkan/renderer.hpp"
 #include "graphics/vulkan/swapchain.hpp"
-#include "graphics/vulkan/vulkan_buffer.hpp"
 
 namespace fluid::graphics {
 
@@ -22,7 +21,7 @@ void CommandRecorder::record(
     uint32_t p_image_index,
     const glm::vec4& p_clear_color,
     const glm::mat4& p_view_projection,
-    const VulkanBuffer& p_particle_vertex_buffer,
+    VkBuffer p_particle_vertex_buffer,
     uint32_t p_vertex_count
 ) {
     const VkCommandBuffer command = _renderer.getCommandBuffer(p_image_index);
@@ -92,7 +91,7 @@ void CommandRecorder::record(
         &camera
     );
 
-    const VkBuffer vertexBuffers[] = {p_particle_vertex_buffer.getBuffer()};
+    const VkBuffer vertexBuffers[] = {p_particle_vertex_buffer};
     constexpr VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(command, 0, 1, vertexBuffers, offsets);
     vkCmdDraw(command, p_vertex_count, 1, 0, 0);

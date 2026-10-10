@@ -23,7 +23,7 @@ class Swapchain;
 class Device {
   public:
     void pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain);
-    void createLogicalDevice(Instance& p_instance);
+    void createLogicalDevice(Instance& p_instance, bool p_enable_cuda_interop);
     void recreateDepthResources(Swapchain& p_swapchain);
     void cleanupDepthResources();
     void cleanup();

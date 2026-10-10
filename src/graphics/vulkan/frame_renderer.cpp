@@ -7,7 +7,6 @@
 #include "graphics/vulkan/device.hpp"
 #include "graphics/vulkan/renderer.hpp"
 #include "graphics/vulkan/swapchain.hpp"
-#include "graphics/vulkan/vulkan_buffer.hpp"
 
 namespace fluid::graphics {
 
@@ -31,13 +30,27 @@ VkResult FrameRenderer::acquireFrameImage(uint32_t& p_image_index) {
     );
 }
 
-void FrameRenderer::submitFrame(uint32_t p_image_index) {
+void FrameRenderer::submitFrame(
+    uint32_t p_image_index,
+    VkSemaphore p_cuda_interop_semaphore,
+    uint64_t p_cuda_ready_value,
+    uint64_t p_vulkan_done_value
+) {
     VkSemaphore waitSemaphores[] = {
-        _renderer.getCurrentImageAvailableSemaphores()};
+        _renderer.getCurrentImageAvailableSemaphores(),
+        p_cuda_interop_semaphore};
     VkPipelineStageFlags waitStages[] = {
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_VERTEX_INPUT_BIT};
+    const uint64_t waitValues[] = {0, p_cuda_ready_value};
+
     VkSemaphore signalSemaphores[] = {
-        _renderer.getRenderFinishedSemaphore(p_image_index)};
+        _renderer.getRenderFinishedSemaphore(p_image_index),
+        p_cuda_interop_semaphore};
+    const uint64_t signalValues[] = {0, p_vulkan_done_value};
+
+    const bool useCudaInterop = p_cuda_interop_semaphore != VK_NULL_HANDLE;
+    const uint32_t semaphoreCount = useCudaInterop ? 2U : 1U;
 
     if (vkResetFences(
             _device.getDevice(),
@@ -53,13 +66,23 @@ void FrameRenderer::submitFrame(uint32_t p_image_index) {
         _renderer.getCommandBuffer(p_image_index);
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.waitSemaphoreCount = semaphoreCount;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
-    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.signalSemaphoreCount = semaphoreCount;
     submitInfo.pSignalSemaphores = signalSemaphores;
+
+    VkTimelineSemaphoreSubmitInfo timelineInfo{};
+    if (useCudaInterop) {
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.waitSemaphoreValueCount = semaphoreCount;
+        timelineInfo.pWaitSemaphoreValues = waitValues;
+        timelineInfo.signalSemaphoreValueCount = semaphoreCount;
+        timelineInfo.pSignalSemaphoreValues = signalValues;
+        submitInfo.pNext = &timelineInfo;
+    }
 
     if (vkQueueSubmit(
             _device.getGraphicsQueue(),
@@ -93,39 +116,24 @@ VkResult FrameRenderer::presentFrame(uint32_t p_image_index) {
 FrameRenderStatus FrameRenderer::render(
     const core::Camera& camera,
     const glm::vec4& p_clear_color,
-    const VulkanBuffer& p_particle_vertex_buffer,
-    uint32_t p_vertex_count
+    VkBuffer p_particle_vertex_buffer,
+    uint32_t p_vertex_count,
+    VkSemaphore p_cuda_interop_semaphore,
+    uint64_t p_cuda_ready_value,
+    uint64_t p_vulkan_done_value
 ) {
-    waitForCurrentFrame();
+    if (p_cuda_interop_semaphore != VK_NULL_HANDLE && !_frame_prepared) {
+        throw std::runtime_error(
+            "FrameRenderer::render() -> CUDA interop frame was not prepared"
+        );
+    }
 
-    uint32_t imageIndex = 0;
-    const VkResult acquireResult = acquireFrameImage(imageIndex);
-    if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (!_frame_prepared && !prepareFrame()) {
         return FrameRenderStatus::NeedsRecreate;
     }
 
-    if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
-        throw std::runtime_error(
-            "FrameRenderer::render() -> failed to acquire swapchain image"
-        );
-    }
-
-    const VkFence& imageFence = _renderer.getImageInFlightFence(imageIndex);
-    if (imageFence != VK_NULL_HANDLE && vkWaitForFences(
-                                            _device.getDevice(),
-                                            1,
-                                            &imageFence,
-                                            VK_TRUE,
-                                            UINT64_MAX
-                                        ) != VK_SUCCESS) {
-        throw std::runtime_error(
-            "FrameRenderer::render() -> failed to wait for a swapchain image"
-        );
-    }
-    _renderer.setImageInFlightFence(
-        imageIndex,
-        _renderer.getCurrentInFlightFences()
-    );
+    const uint32_t imageIndex = _prepared_image_index;
+    const VkResult acquireResult = _prepared_acquire_result;
 
     _command_recorder.record(
         imageIndex,
@@ -134,7 +142,13 @@ FrameRenderStatus FrameRenderer::render(
         p_particle_vertex_buffer,
         p_vertex_count
     );
-    submitFrame(imageIndex);
+    submitFrame(
+        imageIndex,
+        p_cuda_interop_semaphore,
+        p_cuda_ready_value,
+        p_vulkan_done_value
+    );
+    _frame_prepared = false;
     _renderer.incrementeCurrentFrame();
 
     const VkResult presentResult = presentFrame(imageIndex);
@@ -151,6 +165,46 @@ FrameRenderStatus FrameRenderer::render(
     }
 
     return FrameRenderStatus::Rendered;
+}
+
+bool FrameRenderer::prepareFrame() {
+    if (_frame_prepared) return true;
+
+    waitForCurrentFrame();
+
+    uint32_t imageIndex = 0;
+    const VkResult acquireResult = acquireFrameImage(imageIndex);
+    if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) return false;
+
+    if (acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error(
+            "FrameRenderer::prepareFrame() -> failed to acquire swapchain "
+            "image"
+        );
+    }
+
+    const VkFence& imageFence = _renderer.getImageInFlightFence(imageIndex);
+    if (imageFence != VK_NULL_HANDLE && vkWaitForFences(
+                                            _device.getDevice(),
+                                            1,
+                                            &imageFence,
+                                            VK_TRUE,
+                                            UINT64_MAX
+                                        ) != VK_SUCCESS) {
+        throw std::runtime_error(
+            "FrameRenderer::prepareFrame() -> failed to wait for a swapchain "
+            "image"
+        );
+    }
+    _renderer.setImageInFlightFence(
+        imageIndex,
+        _renderer.getCurrentInFlightFences()
+    );
+
+    _prepared_image_index = imageIndex;
+    _prepared_acquire_result = acquireResult;
+    _frame_prepared = true;
+    return true;
 }
 
 void FrameRenderer::waitForCurrentFrame() {

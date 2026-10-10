@@ -1,6 +1,7 @@
 #ifndef FLUID_APP_APPLICATION_HPP
 #define FLUID_APP_APPLICATION_HPP
 
+#include <cstdint>
 #include <vector>
 
 #include "config.hpp"
@@ -26,6 +27,7 @@ class Application {
 
   private:
     ApplicationConfig _config;
+    bool _use_cuda_interop = false;
     GLFWwindow* _window = nullptr;
     graphics::GraphicsRuntime _graphics;
     core::Camera _camera;
@@ -33,6 +35,8 @@ class Application {
 
     simulation::FluidSimulator _fluid_simulator;
     std::vector<graphics::ParticleVertex> _particle_vertices;
+    simulation::CudaInteropSyncValues _cuda_interop_sync;
+    uint32_t _active_particle_count = 0;
 
     core::Timer _timer;
 

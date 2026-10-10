@@ -5,14 +5,13 @@
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
+#include <vulkan/vulkan.h>
 
 namespace fluid::graphics {
 
 class GraphicPipeline;
 class Renderer;
 class Swapchain;
-class VulkanBuffer;
-
 class CommandRecorder {
   public:
     CommandRecorder(
@@ -25,7 +24,7 @@ class CommandRecorder {
         uint32_t p_image_index,
         const glm::vec4& p_clear_color,
         const glm::mat4& p_view_projection,
-        const VulkanBuffer& p_particle_vertex_buffer,
+        VkBuffer p_particle_vertex_buffer,
         uint32_t p_vertex_count
     );
 
