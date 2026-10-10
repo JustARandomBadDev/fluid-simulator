@@ -3,17 +3,16 @@
 [Back to the README](../README.md)
 
 This document records chronological end-to-end simulation measurements. New
-implementation milestones should append results instead of replacing the
-baseline so that later CUDA grid, transfer, and interoperability work can be
-compared after each change is implemented.
+implementation milestones should append results instead of replacing earlier
+entries so code changes can be compared under the recorded conditions.
 
 ## Methodology
 
 The headless benchmark uses the real `FluidSimulator` and selected backend.
 Warmup steps are excluded from the measurement, which times complete simulation
-updates with `std::chrono::steady_clock`. CUDA timings include host-to-device
-copies, the three simulation kernels, device synchronization, and
-device-to-host copies performed by `CudaSolver::step()`.
+updates with `std::chrono::steady_clock`. Current CUDA timings include
+host-to-device copies, the CUDA Uniform Grid rebuild, the three SPH kernels,
+and device-to-host copies performed by `CudaSolver::step()`.
 
 Both backends use the same default particle state, scene, SPH parameters, time
 step, and number of iterations. No backend-specific tuning is applied.
@@ -47,6 +46,30 @@ The benchmark commands are:
 ./build/fluid-simulator --benchmark --backend cpu
 ./build/fluid-simulator --benchmark --backend cuda
 ```
+
+This simulation benchmark remains headless and never initializes GLFW, Vulkan,
+or the interop resources.
+
+## CUDA/Vulkan rendering-path benchmark
+
+```sh
+./build/fluid-simulator --benchmark-interop
+```
+
+This separate graphical benchmark compares the real CUDA rendering paths. It
+creates a fresh `Application` for the host-transfer path, destroys it, then
+creates another for the external-memory interop path. Both runs use the same
+particle seed and configuration, 100 warmup frames, 1,000 measured frames, and
+a 0.001 s simulation step.
+
+Each sample covers simulation update, particle transfer or CUDA vertex packing,
+required CUDA/Vulkan synchronization, and graphics submission/presentation.
+Initialization, cleanup, event polling, and warmup frames are excluded. Output
+includes average, median, minimum, and maximum frame time, FPS, and the relative
+difference between the two modes.
+
+The swapchain prefers `MAILBOX`. If only the `FIFO` fallback is available,
+VSync may dominate both measurements and hide the rendering-path difference.
 
 ## Test system
 
@@ -88,3 +111,18 @@ Notes:
 - The CUDA backend launches one thread per particle and uses an O(n²)
   all-pairs neighbor search. Device allocations persist, while position and
   velocity transfers and synchronization remain inside every measured step.
+
+### CUDA/Vulkan interop rendering-path comparison
+
+- Active particles: 100,000
+- Warmup frames: 100; measured frames: 1,000; delta time: 0.001 s
+
+| Rendering path  | Particles | Average frame | Median frame |   Min frame |    Max frame |    FPS |
+| --------------- | --------: | ------------: | -----------: | ----------: | -----------: | -----: |
+| Without interop |   100,000 |      8.263 ms |     7.843 ms |    6.075 ms |    12.463 ms | 121.03 |
+| With interop    |   100,000 |      7.604 ms |     7.119 ms |    4.288 ms |    12.834 ms | 131.51 |
+
+Difference:
+
+- Average frame time: -8.0%
+- Throughput: +8.7%
